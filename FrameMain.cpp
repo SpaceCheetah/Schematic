@@ -2,9 +2,11 @@
 #include "id.h"
 #include "Resources.h"
 
-FrameMain::FrameMain() : wxFrame(nullptr, wxID_ANY, std::string{constants::title}, wxDefaultPosition, wxDefaultSize,
+FrameMain::FrameMain() : wxFrame(nullptr, wxID_ANY, "Schematic", wxDefaultPosition, wxDefaultSize,
                                  wxDEFAULT_FRAME_STYLE | wxMAXIMIZE) {
+    wxTopLevelWindowMSW::SetIcons(resources::getResistorIconBundle());
     Bind(wxEVT_SIZE, &FrameMain::onSize, this);
+
 
     toolbar = wxFrame::CreateToolBar(wxTB_VERTICAL | wxTB_FLAT | wxTB_NODIVIDER, wxID_ANY);
     toolbar->AddTool(id::tool_resistor, "Resistor", wxBitmap{resources::getResistorImage().Scale(32, 32)});

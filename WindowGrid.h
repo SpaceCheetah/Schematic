@@ -7,6 +7,10 @@ public:
     explicit WindowGrid(wxWindow* parent, wxWindowID id = wxID_ANY, const wxPoint& pos = wxDefaultPosition, const wxSize& size = wxDefaultSize);
 private:
     void OnDraw(wxDC& dc) override;
+    void onScroll(wxMouseEvent& event);
+    void refresh(int xPos, int yPos);
     Grid grid;
-    wxFont bigFont;
+    wxFont font;
+    wxImage resistorScaled;
+    int zoomLevels = 0;
 };

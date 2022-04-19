@@ -3,4 +3,5 @@
 
 namespace resources {
     wxImage getResistorImage();
+    wxIconBundle getResistorIconBundle();
 }

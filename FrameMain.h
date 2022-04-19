@@ -1,6 +1,5 @@
 #pragma once
 #include <wx/wx.h>
-#include "constants.h"
 #include "WindowGrid.h"
 
 class FrameMain : public wxFrame {
