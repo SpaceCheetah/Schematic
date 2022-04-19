@@ -4,6 +4,7 @@
 
 namespace id {
     enum id {
-        tool_resistor = wxID_HIGHEST + 1
+        tool_wire = wxID_HIGHEST + 1,
+        tool_resistor
     };
 }

@@ -2,21 +2,21 @@
 #include <iomanip>
 #include "Item.h"
 
-Item::Item(Item::ItemType type, Item::Rotation rotation, double value) : type{type}, rotation{rotation}, value{value} {}
+Item::Item(Item::ItemType type, int shape, double value) : type{type}, shape{shape}, value{value} {}
 
 Item::ItemType Item::getType() const {
     return type;
 }
 
-Item::Rotation Item::getRotation() const {
-    return rotation;
+int Item::getShape() const {
+    return shape;
 }
 
 double Item::getValue() const {
     return value;
 }
 
-Item::Item() : Item(Item::ItemType::none, Item::Rotation::up, 0) {}
+Item::Item() : Item(Item::ItemType::none, 0, 0) {}
 
 namespace {
     std::pair<double, wchar_t> getSI(double value) {

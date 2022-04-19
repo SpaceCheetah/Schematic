@@ -2,6 +2,8 @@
 #include "Resources.h"
 #include <wx/graphics.h>
 
+#include <utility>
+
 void WindowGrid::OnDraw(wxDC& dc) {
     dc.SetBrush(*wxBLACK_BRUSH);
     dc.SetFont(font);
@@ -19,24 +21,39 @@ void WindowGrid::OnDraw(wxDC& dc) {
                 }
                 case Item::ItemType::resistor: {
                     std::wstring value = item.getValueStr();
-                    switch (item.getRotation()) {
-                        case Item::Rotation::up:
-                        case Item::Rotation::down: {
-                            wxSize textSize = dc.GetTextExtent(value);
-                            dc.DrawBitmap(resistorScaled.Rotate90(), cellSize * c, cellSize * r);
-                            dc.DrawRotatedText(value, cellSize * c + cellSize * 3 / 4, cellSize * r + cellSize / 2 - textSize.GetWidth() / 2, 270);
-                            break;
-                        }
-                        case Item::Rotation::left:
-                        case Item::Rotation::right: {
-                            dc.DrawBitmap(resistorScaled, cellSize * c, cellSize * r);
-                            dc.DrawLabel(value, wxRect{cellSize * c, cellSize * r + cellSize / 4, cellSize, cellSize}, wxALIGN_CENTER_HORIZONTAL | wxALIGN_TOP);
-                            break;
-                        }
+                    if(item.getShape() == Item::HORIZONTAL) {
+                        dc.DrawBitmap(resistorScaled, cellSize * c, cellSize * r);
+                        dc.DrawLabel(value, wxRect{cellSize * c, cellSize * r + cellSize / 4, cellSize, cellSize}, wxALIGN_CENTER_HORIZONTAL | wxALIGN_TOP);
+                    } else {
+                        wxSize textSize = dc.GetTextExtent(value);
+                        dc.DrawBitmap(resistorScaled.Rotate90(), cellSize * c, cellSize * r);
+                        dc.DrawRotatedText(value, cellSize * c + cellSize * 3 / 4, cellSize * r + cellSize / 2 - textSize.GetWidth() / 2, 270);
                     }
                     break;
                 }
                 case Item::ItemType::wire: {
+                    dc.SetPen(pen);
+                    int directions = 0;
+                    wxPoint middle = wxPoint{cellSize / 2 + cellSize * c, cellSize / 2 + cellSize * r};
+                    if(item.getShape() & Item::UP) {
+                        dc.DrawLine(wxPoint{cellSize / 2 + cellSize * c, cellSize * r}, middle);
+                        directions ++;
+                    }
+                    if(item.getShape() & Item::DOWN) {
+                        dc.DrawLine(wxPoint{cellSize / 2 + cellSize * c, cellSize * (r + 1)}, middle);
+                        directions ++;
+                    }
+                    if(item.getShape() & Item::LEFT) {
+                        dc.DrawLine(wxPoint{cellSize * c, cellSize / 2 + cellSize * r}, middle);
+                        directions ++;
+                    }
+                    if(item.getShape() & Item::RIGHT) {
+                        dc.DrawLine(wxPoint{cellSize * (c + 1), cellSize / 2 + cellSize * r}, middle);
+                        directions ++;
+                    }
+                    if(directions > 2) {
+                        dc.DrawCircle(middle, std::max(cellSize * 3 / 128, 1));
+                    }
                     break;
                 }
             }
@@ -44,14 +61,10 @@ void WindowGrid::OnDraw(wxDC& dc) {
     }
 }
 
-WindowGrid::WindowGrid(wxWindow* parent, wxWindowID id, const wxPoint& pos, const wxSize& size) : wxScrolledCanvas(parent, id, pos, size) {
+WindowGrid::WindowGrid(Grid grid, wxWindow* parent, wxWindowID id, const wxPoint& pos, const wxSize& size) : wxScrolledCanvas(parent, id, pos, size), grid{std::move(grid)} {
     Bind(wxEVT_MOUSEWHEEL, &WindowGrid::onScroll, this);
-
-    grid = Grid{};
-    grid.set(0,0,Item{Item::ItemType::resistor, Item::Rotation::up, 1234908712345});
-    grid.set(0,1,Item{Item::ItemType::resistor, Item::Rotation::left, 8734645325});
-    grid.set(0,2, Item{Item::ItemType::resistor, Item::Rotation::right, 15435 });
-    grid.set(1,0, Item{Item::ItemType::resistor, Item::Rotation::down, 76322});
+    Bind(wxEVT_LEFT_DOWN, &WindowGrid::onLeftDown, this);
+    Bind(wxEVT_MOTION, &WindowGrid::onMotion, this);
     refresh(0, 0);
 }
 
@@ -60,6 +73,7 @@ void WindowGrid::refresh(int xPos, int yPos) {
     font = wxSystemSettings::GetFont(wxSYS_DEFAULT_GUI_FONT);
     font.SetPixelSize(wxSize{0, 16 + 2 * zoomLevels});
     resistorScaled = resources::getResistorImage().Scale(128 + 16 * zoomLevels, 128 + 16 * zoomLevels);
+    pen = wxPen{wxPenInfo(*wxBLACK, std::ceil(22.0 / 1024 * (128 + 16 * zoomLevels)))};
     Refresh();
 }
 
@@ -96,4 +110,114 @@ void WindowGrid::onScroll(wxMouseEvent& event) {
     } else {
         event.Skip();
     }
+}
+
+void WindowGrid::onMotion(wxMouseEvent& event) {
+    static wxPoint lastMousePos{-1,-1};
+    static wxPoint lastScrolledMousePos{0,0};
+    wxPoint mousePos = event.GetPosition();
+    int cellSize = 128 + 16 * zoomLevels;
+    wxPoint logicalPos = CalcUnscrolledPosition(mousePos);
+    wxPoint cell = logicalPos / cellSize;
+    if(!(cell.x >= 0 && cell.y >= 0 && cell.x < grid.getWidth() && cell.y < grid.getHeight())) {
+        cell = wxPoint{-1,-1};
+    }
+    if(cell != currentCell) {
+        lastCell = currentCell;
+        currentCell = cell;
+        if(event.LeftIsDown()) {
+            if(selectedTool == Item::ItemType::resistor) {
+                int shape = Item::VERTICAL;
+                if (lastCell.x != currentCell.x) {
+                    shape = Item::HORIZONTAL;
+                }
+                placePartial(currentCell, Item{Item::ItemType::resistor, shape, 100});
+            } else if(selectedTool == Item::ItemType::wire) {
+                int shape = Item::UP;
+                int oppositeShape = Item::DOWN;
+                if (lastCell.x < currentCell.x) {
+                    shape = Item::LEFT;
+                    oppositeShape = Item::RIGHT;
+                } else if (lastCell.x > currentCell.x) {
+                    shape = Item::RIGHT;
+                    oppositeShape = Item::LEFT;
+                } else if (lastCell.y > currentCell.y) {
+                    shape = Item::DOWN;
+                    oppositeShape = Item::UP;
+                }
+                placePartial(currentCell, Item{Item::ItemType::wire, shape, 0});
+                placePartial(lastCell, Item{Item::ItemType::wire, oppositeShape, 0});
+            }
+        }
+    }
+    if(event.MiddleIsDown()) {
+        wxPoint diff = lastScrolledMousePos - mousePos;
+        wxPoint scrollCurrent = GetViewStart();
+        wxPoint scrollChange{0,0};
+        if(diff.x >= 16 || diff.x <= -16) {
+            scrollChange.x = diff.x / 16;
+            lastScrolledMousePos.x = mousePos.x;
+        }
+        if(diff.y >= 16 || diff.y <= -16) {
+            scrollChange.y = diff.y / 16;
+            lastScrolledMousePos.y = mousePos.y;
+        }
+        if(scrollChange != wxPoint{0,0}) {
+            Scroll(scrollCurrent + scrollChange);
+        }
+    } else {
+        lastScrolledMousePos = mousePos;
+    }
+    lastMousePos = mousePos;
+    event.Skip();
+}
+
+void WindowGrid::placePartial(wxPoint cell, Item item) {
+    int cellSize = 128 + 16 * zoomLevels;
+    wxRect affectedRect{CalcScrolledPosition(cellSize * cell), wxSize{cellSize, cellSize}};\
+    Item currentItem = grid.get(cell.y, cell.x);
+    if(item.getType() == Item::ItemType::resistor) {
+        if(currentItem.getType() == Item::ItemType::resistor) {
+            if(currentItem.getShape() != item.getShape()) {
+                Item newItem{Item::ItemType::resistor, item.getShape(), currentItem.getValue()};
+                grid.set(cell.y, cell.x, newItem);
+                RefreshRect(affectedRect);
+            }
+        } else if (currentItem.getType() == Item::ItemType::none || currentItem.getType() == Item::ItemType::wire) {
+            grid.set(cell.y, cell.x, item);
+            RefreshRect(affectedRect);
+        }
+    } else if(item.getType() == Item::ItemType::wire) {
+        if(currentItem.getType() == Item::ItemType::none) {
+            grid.set(cell.y, cell.x, item);
+            RefreshRect(affectedRect);
+        } else if(currentItem.getType() == Item::ItemType::wire && !(currentItem.getShape() & item.getShape())) {
+            Item newItem{Item::ItemType::wire, item.getShape() | currentItem.getShape(), 0};
+            grid.set(cell.y, cell.x, newItem);
+            RefreshRect(affectedRect);
+        }
+    }
+}
+
+void WindowGrid::onLeftDown(wxMouseEvent& event) {
+    if (currentCell != wxPoint{-1, -1}) {
+        if (selectedTool == Item::ItemType::resistor) {
+            int shape = Item::VERTICAL;
+            if (lastCell.x != currentCell.x) {
+                shape = Item::HORIZONTAL;
+            }
+            placePartial(currentCell, Item{Item::ItemType::resistor, shape, 100});
+        } else if (selectedTool == Item::ItemType::wire) {
+            int shape = Item::UP;
+            if (lastCell.x < currentCell.x) {
+                shape = Item::LEFT;
+            } else if (lastCell.x > currentCell.x) {
+                shape = Item::RIGHT;
+            } else if (lastCell.y > currentCell.y) {
+                shape = Item::DOWN;
+            }
+            placePartial(currentCell, Item{Item::ItemType::wire, shape, 0});
+        }
+    }
+    event.Skip();
 }

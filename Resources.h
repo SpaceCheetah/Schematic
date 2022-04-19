@@ -3,5 +3,6 @@
 
 namespace resources {
     wxImage getResistorImage();
+    wxImage getWireImage();
     wxIconBundle getResistorIconBundle();
 }

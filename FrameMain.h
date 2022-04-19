@@ -7,6 +7,7 @@ public:
     FrameMain();
 private:
     void onSize(wxSizeEvent& evt);
+    void onChar(wxKeyEvent& evt);
     wxToolBar* toolbar;
     WindowGrid* windowGrid;
 };
