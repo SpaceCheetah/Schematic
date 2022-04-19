@@ -1,8 +1,9 @@
 #include "WindowGrid.h"
 #include "Resources.h"
+#include "id.h"
 #include <wx/graphics.h>
-
 #include <utility>
+#include <sstream>
 
 void WindowGrid::OnDraw(wxDC& dc) {
     dc.SetBrush(*wxBLACK_BRUSH);
@@ -62,10 +63,20 @@ void WindowGrid::OnDraw(wxDC& dc) {
     }
 }
 
-WindowGrid::WindowGrid(Grid grid, wxWindow* parent, wxWindowID id, const wxPoint& pos, const wxSize& size) : wxScrolledCanvas(parent, id, pos, size), grid{std::move(grid)} {
+WindowGrid::WindowGrid(Grid grid, wxWindow* parent, wxWindowID id, const wxPoint& pos, const wxSize& size) : wxScrolledCanvas(parent, id, pos, size),
+grid{std::move(grid)} {
     Bind(wxEVT_MOUSEWHEEL, &WindowGrid::onScroll, this);
     Bind(wxEVT_LEFT_DOWN, &WindowGrid::onLeftDown, this);
     Bind(wxEVT_MOTION, &WindowGrid::onMotion, this);
+    Bind(wxEVT_RIGHT_DOWN, &WindowGrid::onRightDown, this);
+
+    resistorMenu.Append(id::rotate, "Rotate");
+    resistorMenu.Append(id::set_value, "Set resistance");
+    wireMenu.Append(id::toggle_up, "Toggle up");
+    wireMenu.Append(id::toggle_left, "Toggle left");
+    wireMenu.Append(id::toggle_right, "Toggle right");
+    wireMenu.Append(id::toggle_down, "Toggle down");
+
     refresh(0, 0);
 }
 
@@ -183,7 +194,7 @@ void WindowGrid::onMotion(wxMouseEvent& event) {
 
 void WindowGrid::placePartial(wxPoint cell, Item item) {
     int cellSize = 128 + 16 * zoomLevels;
-    wxRect affectedRect{CalcScrolledPosition(cellSize * cell), wxSize{cellSize, cellSize}};\
+    wxRect affectedRect{CalcScrolledPosition(cellSize * cell), wxSize{cellSize, cellSize}};
     Item currentItem = grid.get(cell.y, cell.x);
     switch(item.getType()) {
         case Item::ItemType::none: {
@@ -249,4 +260,75 @@ void WindowGrid::onLeftDown(wxMouseEvent& event) {
         }
     }
     event.Skip();
+}
+
+void WindowGrid::onRightDown(wxMouseEvent& event) {
+    Item currentItem = grid.get(currentCell.y, currentCell.x);
+    int cellSize = 128 + 16 * zoomLevels;
+    wxRect affectedRect{CalcScrolledPosition(cellSize * currentCell), wxSize{cellSize, cellSize}};
+    switch(currentItem.getType()) {
+        case Item::ItemType::none:
+            event.Skip();
+            break;
+        case Item::ItemType::resistor: {
+            int response = GetPopupMenuSelectionFromUser(resistorMenu);
+            switch(response) {
+                case id::rotate: {
+                    Item item{Item::ItemType::resistor, currentItem.getShape() == Item::HORIZONTAL ? Item::VERTICAL : Item::HORIZONTAL, 0};
+                    placePartial(currentCell, item);
+                    break;
+                }
+                case id::set_value: {
+                    //using stringstream instead of to_string because to_string with double outputs necessary 0s
+                    std::stringstream ss{};
+                    ss << currentItem.getValue();
+                    wxTextEntryDialog dialog{this, "Set Resistance", "Resistance", ss.str()};
+                    if(dialog.ShowModal() == wxID_OK) {
+                        try {
+                            double value = std::stod(dialog.GetValue().utf8_string());
+                            Item item{Item::ItemType::resistor, currentItem.getShape(), value};
+                            grid.set(currentCell.y, currentCell.x, item);
+                            RefreshRect(affectedRect);
+                        } catch(std::exception& e) {
+                            wxMessageDialog(this, std::string("Cannot parse \"") + dialog.GetValue() + "\" as a double", "", wxOK|wxCENTRE|wxICON_WARNING).ShowModal();
+                        }
+                    }
+                    break;
+                }
+                default: {}
+            }
+            break;
+        }
+        case Item::ItemType::wire: {
+            int response = GetPopupMenuSelectionFromUser(wireMenu);
+            bool changed = true;
+            Item item;
+            switch (response) {
+                case id::toggle_up: {
+                    item = {Item::ItemType::wire, currentItem.getShape() ^ Item::UP, 0};
+                    break;
+                }
+                case id::toggle_down: {
+                    item = {Item::ItemType::wire, currentItem.getShape() ^ Item::DOWN, 0};
+                    break;
+                }
+                case id::toggle_left: {
+                    item = {Item::ItemType::wire, currentItem.getShape() ^ Item::LEFT, 0};
+                    break;
+                }
+                case id::toggle_right: {
+                    item = {Item::ItemType::wire, currentItem.getShape() ^ Item::RIGHT, 0};
+                    break;
+                }
+                default: {
+                    changed = false;
+                }
+            }
+            if(changed) {
+                grid.set(currentCell.y, currentCell.x, item);
+                RefreshRect(affectedRect);
+            }
+            break;
+        }
+    }
 }

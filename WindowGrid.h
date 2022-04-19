@@ -11,6 +11,7 @@ private:
     void onScroll(wxMouseEvent& event);
     void onMotion(wxMouseEvent& event);
     void onLeftDown(wxMouseEvent& event);
+    void onRightDown(wxMouseEvent& event);
     void refresh(int xPos, int yPos);
     void placePartial(wxPoint cell, Item item);
     Grid grid;
@@ -19,5 +20,7 @@ private:
     wxPoint lastCell{-1,-1};
     wxPoint currentCell{-1,-1};
     wxPen pen;
+    wxMenu resistorMenu{};
+    wxMenu wireMenu{};
     int zoomLevels = 0;
 };
