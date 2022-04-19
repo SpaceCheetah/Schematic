@@ -6,6 +6,7 @@
 
 void WindowGrid::OnDraw(wxDC& dc) {
     dc.SetBrush(*wxBLACK_BRUSH);
+    dc.SetPen(pen);
     dc.SetFont(font);
     wxRect updateRect = GetUpdateRegion().GetBox();
     wxPoint tl = CalcUnscrolledPosition(wxPoint{updateRect.GetLeft(), updateRect.GetTop()});
@@ -32,7 +33,7 @@ void WindowGrid::OnDraw(wxDC& dc) {
                     break;
                 }
                 case Item::ItemType::wire: {
-                    dc.SetPen(pen);
+                    //dc.SetPen(pen);
                     int directions = 0;
                     wxPoint middle = wxPoint{cellSize / 2 + cellSize * c, cellSize / 2 + cellSize * r};
                     if(item.getShape() & Item::UP) {
@@ -73,7 +74,7 @@ void WindowGrid::refresh(int xPos, int yPos) {
     font = wxSystemSettings::GetFont(wxSYS_DEFAULT_GUI_FONT);
     font.SetPixelSize(wxSize{0, 16 + 2 * zoomLevels});
     resistorScaled = resources::getResistorImage().Scale(128 + 16 * zoomLevels, 128 + 16 * zoomLevels);
-    pen = wxPen{wxPenInfo(*wxBLACK, std::ceil(22.0 / 1024 * (128 + 16 * zoomLevels)))};
+    pen = wxPen{wxPenInfo(*wxBLACK, std::ceil(22.0 / 1024 * (128 + 16 * zoomLevels))).Cap(wxCAP_BUTT)};
     Refresh();
 }
 
@@ -126,27 +127,35 @@ void WindowGrid::onMotion(wxMouseEvent& event) {
         lastCell = currentCell;
         currentCell = cell;
         if(event.LeftIsDown()) {
-            if(selectedTool == Item::ItemType::resistor) {
-                int shape = Item::VERTICAL;
-                if (lastCell.x != currentCell.x) {
-                    shape = Item::HORIZONTAL;
+            switch(selectedTool) {
+                case Item::ItemType::none:
+                    placePartial(currentCell, Item{});
+                    break;
+                case Item::ItemType::resistor: {
+                    int shape = Item::VERTICAL;
+                    if (lastCell.x != currentCell.x) {
+                        shape = Item::HORIZONTAL;
+                    }
+                    placePartial(currentCell, Item{Item::ItemType::resistor, shape, 100});
+                    break;
                 }
-                placePartial(currentCell, Item{Item::ItemType::resistor, shape, 100});
-            } else if(selectedTool == Item::ItemType::wire) {
-                int shape = Item::UP;
-                int oppositeShape = Item::DOWN;
-                if (lastCell.x < currentCell.x) {
-                    shape = Item::LEFT;
-                    oppositeShape = Item::RIGHT;
-                } else if (lastCell.x > currentCell.x) {
-                    shape = Item::RIGHT;
-                    oppositeShape = Item::LEFT;
-                } else if (lastCell.y > currentCell.y) {
-                    shape = Item::DOWN;
-                    oppositeShape = Item::UP;
+                case Item::ItemType::wire: {
+                    int shape = Item::UP;
+                    int oppositeShape = Item::DOWN;
+                    if (lastCell.x < currentCell.x) {
+                        shape = Item::LEFT;
+                        oppositeShape = Item::RIGHT;
+                    } else if (lastCell.x > currentCell.x) {
+                        shape = Item::RIGHT;
+                        oppositeShape = Item::LEFT;
+                    } else if (lastCell.y > currentCell.y) {
+                        shape = Item::DOWN;
+                        oppositeShape = Item::UP;
+                    }
+                    placePartial(currentCell, Item{Item::ItemType::wire, shape, 0});
+                    placePartial(lastCell, Item{Item::ItemType::wire, oppositeShape, 0});
+                    break;
                 }
-                placePartial(currentCell, Item{Item::ItemType::wire, shape, 0});
-                placePartial(lastCell, Item{Item::ItemType::wire, oppositeShape, 0});
             }
         }
     }
@@ -176,47 +185,67 @@ void WindowGrid::placePartial(wxPoint cell, Item item) {
     int cellSize = 128 + 16 * zoomLevels;
     wxRect affectedRect{CalcScrolledPosition(cellSize * cell), wxSize{cellSize, cellSize}};\
     Item currentItem = grid.get(cell.y, cell.x);
-    if(item.getType() == Item::ItemType::resistor) {
-        if(currentItem.getType() == Item::ItemType::resistor) {
-            if(currentItem.getShape() != item.getShape()) {
-                Item newItem{Item::ItemType::resistor, item.getShape(), currentItem.getValue()};
+    switch(item.getType()) {
+        case Item::ItemType::none: {
+            if(currentItem.getType() != Item::ItemType::none) {
+                grid.set(cell.y, cell.x, item);
+                RefreshRect(affectedRect);
+            }
+            break;
+        }
+        case Item::ItemType::resistor: {
+            if(currentItem.getType() == Item::ItemType::resistor) {
+                if(currentItem.getShape() != item.getShape()) {
+                    Item newItem{Item::ItemType::resistor, item.getShape(), currentItem.getValue()};
+                    grid.set(cell.y, cell.x, newItem);
+                    RefreshRect(affectedRect);
+                }
+            } else if (currentItem.getType() == Item::ItemType::none || currentItem.getType() == Item::ItemType::wire) {
+                grid.set(cell.y, cell.x, item);
+                RefreshRect(affectedRect);
+            }
+            break;
+        }
+        case Item::ItemType::wire: {
+            if(currentItem.getType() == Item::ItemType::none) {
+                grid.set(cell.y, cell.x, item);
+                RefreshRect(affectedRect);
+            } else if(currentItem.getType() == Item::ItemType::wire && !(currentItem.getShape() & item.getShape())) {
+                Item newItem{Item::ItemType::wire, item.getShape() | currentItem.getShape(), 0};
                 grid.set(cell.y, cell.x, newItem);
                 RefreshRect(affectedRect);
             }
-        } else if (currentItem.getType() == Item::ItemType::none || currentItem.getType() == Item::ItemType::wire) {
-            grid.set(cell.y, cell.x, item);
-            RefreshRect(affectedRect);
-        }
-    } else if(item.getType() == Item::ItemType::wire) {
-        if(currentItem.getType() == Item::ItemType::none) {
-            grid.set(cell.y, cell.x, item);
-            RefreshRect(affectedRect);
-        } else if(currentItem.getType() == Item::ItemType::wire && !(currentItem.getShape() & item.getShape())) {
-            Item newItem{Item::ItemType::wire, item.getShape() | currentItem.getShape(), 0};
-            grid.set(cell.y, cell.x, newItem);
-            RefreshRect(affectedRect);
+            break;
         }
     }
 }
 
 void WindowGrid::onLeftDown(wxMouseEvent& event) {
     if (currentCell != wxPoint{-1, -1}) {
-        if (selectedTool == Item::ItemType::resistor) {
-            int shape = Item::VERTICAL;
-            if (lastCell.x != currentCell.x) {
-                shape = Item::HORIZONTAL;
+        switch(selectedTool) {
+            case Item::ItemType::none:
+                placePartial(currentCell, Item{});
+                break;
+            case Item::ItemType::resistor: {
+                int shape = Item::VERTICAL;
+                if (lastCell.x != currentCell.x) {
+                    shape = Item::HORIZONTAL;
+                }
+                placePartial(currentCell, Item{Item::ItemType::resistor, shape, 100});
+                break;
             }
-            placePartial(currentCell, Item{Item::ItemType::resistor, shape, 100});
-        } else if (selectedTool == Item::ItemType::wire) {
-            int shape = Item::UP;
-            if (lastCell.x < currentCell.x) {
-                shape = Item::LEFT;
-            } else if (lastCell.x > currentCell.x) {
-                shape = Item::RIGHT;
-            } else if (lastCell.y > currentCell.y) {
-                shape = Item::DOWN;
+            case Item::ItemType::wire: {
+                int shape = Item::UP;
+                if (lastCell.x < currentCell.x) {
+                    shape = Item::LEFT;
+                } else if (lastCell.x > currentCell.x) {
+                    shape = Item::RIGHT;
+                } else if (lastCell.y > currentCell.y) {
+                    shape = Item::DOWN;
+                }
+                placePartial(currentCell, Item{Item::ItemType::wire, shape, 0});
+                break;
             }
-            placePartial(currentCell, Item{Item::ItemType::wire, shape, 0});
         }
     }
     event.Skip();

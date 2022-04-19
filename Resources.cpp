@@ -10,6 +10,11 @@ wxImage resources::getWireImage() {
     return wireImage;
 }
 
+wxImage resources::getBinImage() {
+    static wxImage binImage{"res/bin.png", wxBITMAP_TYPE_PNG};
+    return binImage;
+}
+
 wxIconBundle resources::getResistorIconBundle() {
     static wxIconBundle resistorBundle{"res/resistor-multires.ico", wxBITMAP_TYPE_ICO};
     return resistorBundle;

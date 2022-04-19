@@ -25,7 +25,11 @@ Item Grid::get(uint32_t row, uint32_t col) const {
 
 void Grid::set(uint32_t row, uint32_t col, Item item) {
     rangeCheck(row, col);
-    gridMap[(static_cast<uint64_t>(row) << 32) | col] = item;
+    if(item.getType() == Item::ItemType::none) {
+        gridMap.erase((static_cast<uint64_t>(row) << 32) | col);
+    } else {
+        gridMap[(static_cast<uint64_t>(row) << 32) | col] = item;
+    }
 }
 
 void Grid::rangeCheck(uint32_t row, uint32_t col) const {

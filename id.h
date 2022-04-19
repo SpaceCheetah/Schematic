@@ -5,6 +5,7 @@
 namespace id {
     enum id {
         tool_wire = wxID_HIGHEST + 1,
-        tool_resistor
+        tool_resistor,
+        tool_bin
     };
 }
