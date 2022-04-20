@@ -16,8 +16,6 @@ double Item::getValue() const {
     return value;
 }
 
-Item::Item() : Item(Item::ItemType::none, 0, 0) {}
-
 namespace {
     std::pair<double, wchar_t> getSI(double value) {
         double absValue = abs(value);

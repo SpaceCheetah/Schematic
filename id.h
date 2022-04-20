@@ -12,6 +12,10 @@ namespace id {
         toggle_up,
         toggle_left,
         toggle_right,
-        toggle_down
+        toggle_down,
+        file_new,
+        file_save,
+        file_save_as,
+        file_load
     };
 }

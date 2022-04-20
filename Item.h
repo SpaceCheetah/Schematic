@@ -14,7 +14,7 @@ public:
     constexpr static int RIGHT = 4;
     constexpr static int LEFT = 8;
 
-    Item();
+    Item() = default;
     Item(ItemType type, int shape, double value);
     ItemType getType() const;
     int getShape() const;
