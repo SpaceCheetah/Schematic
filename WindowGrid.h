@@ -26,7 +26,6 @@ private:
     void placePartial(wxPoint cell, Item item);
     Grid grid;
     wxFont font;
-    wxImage resistorScaled;
     wxPoint lastCell{-1,-1};
     wxPoint currentCell{-1,-1};
     wxPen pen;

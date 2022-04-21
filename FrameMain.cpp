@@ -5,7 +5,6 @@
 #include <fstream>
 
 FrameMain::FrameMain() : wxFrame(nullptr, wxID_ANY, "Schematic", wxDefaultPosition, wxDefaultSize,wxDEFAULT_FRAME_STYLE | wxMAXIMIZE) {
-    wxTopLevelWindowMSW::SetIcons(resources::getResistorIconBundle());
     Bind(wxEVT_SIZE, &FrameMain::onSize, this);
     Bind(wxEVT_CHAR_HOOK, &FrameMain::onChar, this);
     Bind(wxEVT_TOOL, [this](wxCommandEvent& evt) {windowGrid->selectedTool = Item::ItemType::wire;}, id::tool_wire);
@@ -17,10 +16,13 @@ FrameMain::FrameMain() : wxFrame(nullptr, wxID_ANY, "Schematic", wxDefaultPositi
     Bind(wxEVT_MENU, [this](wxCommandEvent& evt) {onNew();}, id::file_new);
     Bind(wxEVT_CLOSE_WINDOW, &FrameMain::onClose, this);
 
+    wxIconBundle bundle = resources::getResistorIconBundle();
+    wxTopLevelWindowMSW::SetIcons(bundle);
+
     windowGrid = nullptr; //toolbar->AddRadioTool sends a Size event, so need to clear windowGrid so that it doesn't try to set the size of an invalid pointer
     toolbar = wxFrame::CreateToolBar(wxTB_VERTICAL | wxTB_FLAT | wxTB_NODIVIDER, wxID_ANY);
     toolbar->AddRadioTool(id::tool_wire, "Wire", wxBitmap{resources::getWireImage()}, wxNullBitmap, "Wire");
-    toolbar->AddRadioTool(id::tool_resistor, "Resistor", wxBitmap{resources::getResistorImage().Scale(32, 32)}, wxNullBitmap, "Resistor");
+    toolbar->AddRadioTool(id::tool_resistor, "Resistor", wxBitmap{bundle.GetIconOfExactSize(wxSize{32,32})}, wxNullBitmap, "Resistor");
     toolbar->AddRadioTool(id::tool_bin, "Delete", wxBitmap{resources::getBinImage()}, wxNullBitmap, "Delete");
     toolbar->Realize();
     toolbar->Fit();

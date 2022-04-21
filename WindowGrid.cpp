@@ -7,6 +7,9 @@
 #include <fstream>
 #include <wx/propgrid/props.h>
 
+//TODO: create backing bitmap for scrolling; render in separate thread (leaving standard rendering as backup), then when done switch to bliting
+//perhaps even pre-render each zoom level? obviously using multiple threads... could be fun!
+
 void WindowGrid::OnDraw(wxDC &dc) {
     dc.SetBrush(*wxBLACK_BRUSH);
     dc.SetPen(pen);
@@ -25,18 +28,48 @@ void WindowGrid::OnDraw(wxDC &dc) {
                 }
                 case Item::ItemType::resistor: {
                     std::wstring value = item.getValueStr();
+                    wxGraphicsContext* gc = wxGraphicsContext::CreateFromUnknownDC(dc);
+                    gc->SetPen(pen);
                     if (item.getShape() == Item::HORIZONTAL) {
-                        dc.DrawBitmap(resistorScaled, cellSize * c, cellSize * r);
-                        dc.DrawLabel(value, wxRect{cellSize * c, cellSize * r + cellSize / 4, cellSize, cellSize}, wxALIGN_CENTER_HORIZONTAL | wxALIGN_TOP);
+                        const wxPoint2DDouble points[] {
+                            wxPoint{cellSize * c, cellSize * r + cellSize / 2},
+                            wxPoint{cellSize * c + cellSize * 9 / 64, cellSize * r + cellSize / 2},
+                            wxPoint{cellSize * c + cellSize * 3 / 16, cellSize * r + cellSize * 19 / 32},
+                            wxPoint{cellSize * c + cellSize * 9 / 32,cellSize * r + cellSize * 13 / 32},
+                            wxPoint{cellSize * c + cellSize * 3 / 8, cellSize * r + cellSize * 19 / 32},
+                            wxPoint{cellSize * c + cellSize * 29 / 64, cellSize * r + cellSize * 13 / 32},
+                            wxPoint{cellSize * c + cellSize * 17 / 32, cellSize * r + cellSize * 19 / 32},
+                            wxPoint{cellSize * c + cellSize * 5 / 8, cellSize * r + cellSize * 13 / 32},
+                            wxPoint{cellSize * c + cellSize * 45 / 64, cellSize * r + cellSize * 19 / 32},
+                            wxPoint{cellSize * c + cellSize * 51 / 64, cellSize * r + cellSize * 13 / 32},
+                            wxPoint{cellSize * c + cellSize * 27 / 32, cellSize * r + cellSize / 2},
+                            wxPoint{cellSize * c + cellSize, cellSize * r + cellSize / 2}};
+                        gc->StrokeLines(sizeof(points) / sizeof(points[0]), points);
+                        delete gc;
+                        dc.DrawLabel(value, wxRect{cellSize * c, cellSize * r + cellSize * 4 / 17, cellSize, cellSize}, wxALIGN_CENTER_HORIZONTAL | wxALIGN_TOP);
                     } else {
+                        const wxPoint2DDouble points[] {
+                            wxPoint{cellSize * c + cellSize / 2,cellSize * r},
+                            wxPoint{cellSize * c + cellSize / 2,cellSize * r + cellSize * 9 / 64},
+                            wxPoint{cellSize * c + cellSize * 19 / 32,cellSize * r + cellSize * 3 / 16},
+                            wxPoint{cellSize * c + cellSize * 13 / 32,cellSize * r + cellSize * 9 / 32},
+                            wxPoint{ cellSize * c + cellSize * 19 / 32,cellSize * r + cellSize * 3 / 8},
+                            wxPoint{ cellSize * c + cellSize * 13 / 32,cellSize * r + cellSize * 29 / 64},
+                            wxPoint{ cellSize * c + cellSize * 19 / 32,cellSize * r + cellSize * 17 / 32},
+                            wxPoint{ cellSize * c + cellSize * 13 / 32,cellSize * r + cellSize * 5 / 8},
+                            wxPoint{ cellSize * c + cellSize * 19 / 32,cellSize * r + cellSize * 45 / 64},
+                            wxPoint{ cellSize * c + cellSize * 13 / 32,cellSize * r + cellSize * 51 / 64},
+                            wxPoint{ cellSize * c + cellSize / 2,cellSize * r + cellSize * 27 / 32},
+                            wxPoint{ cellSize * c + cellSize / 2,cellSize * r + cellSize}
+                        };
+                        gc->StrokeLines(sizeof(points) / sizeof(points[0]), points);
+                        delete gc;
                         wxSize textSize = dc.GetTextExtent(value);
-                        dc.DrawBitmap(resistorScaled.Rotate90(), cellSize * c, cellSize * r);
-                        dc.DrawRotatedText(value, cellSize * c + cellSize * 3 / 4, cellSize * r + cellSize / 2 - textSize.GetWidth() / 2, 270);
+                        dc.DrawRotatedText(value, cellSize * c + cellSize * 40 / 51, cellSize * r + cellSize / 2 - textSize.GetWidth() / 2, 270);
                     }
                     break;
                 }
                 case Item::ItemType::wire: {
-                    //dc.SetPen(pen);
                     int directions = 0;
                     wxPoint middle = wxPoint{cellSize / 2 + cellSize * c, cellSize / 2 + cellSize * r};
                     if (item.getShape() & Item::UP) {
@@ -86,8 +119,7 @@ void WindowGrid::refresh(int xPos, int yPos) {
     wxScrolledCanvas::SetScrollbars(16, 16, static_cast<int>(grid.getWidth()) * (8 + zoomLevels), static_cast<int>(grid.getHeight()) * (8 + zoomLevels), xPos, yPos);
     font = wxSystemSettings::GetFont(wxSYS_DEFAULT_GUI_FONT);
     font.SetPixelSize(wxSize{0, 16 + 2 * zoomLevels});
-    resistorScaled = resources::getResistorImage().Scale(128 + 16 * zoomLevels, 128 + 16 * zoomLevels);
-    pen = wxPen{wxPenInfo(*wxBLACK, std::ceil(22.0 / 1024 * (128 + 16 * zoomLevels))).Cap(wxCAP_BUTT)};
+    pen = wxPen{wxPenInfo(*wxBLACK, std::ceil(22.0 / 1024 * (128 + 16 * zoomLevels)))};
     Refresh();
 }
 
@@ -132,7 +164,6 @@ void WindowGrid::onScroll(wxMouseEvent &event) {
 }
 
 void WindowGrid::onMotion(wxMouseEvent &event) {
-    try {
     static wxPoint lastMousePos{-1, -1};
     static wxPoint lastScrolledMousePos{0, 0};
     wxPoint mousePos = event.GetPosition();
@@ -199,14 +230,12 @@ void WindowGrid::onMotion(wxMouseEvent &event) {
         lastScrolledMousePos = mousePos;
     }
     lastMousePos = mousePos;
-    event.Skip();} catch(std::exception e) {
-
-    }
+    event.Skip();
 }
 
 void WindowGrid::placePartial(wxPoint cell, Item item) {
     int cellSize = 128 + 16 * zoomLevels;
-    wxRect affectedRect{CalcScrolledPosition(cellSize * cell), wxSize{cellSize, cellSize}};
+    wxRect affectedRect{CalcScrolledPosition(cellSize * cell) - wxPoint{5,5}, wxSize{cellSize + 10, cellSize + 10}};
     Item currentItem = grid.get(cell.y, cell.x);
     switch (item.getType()) {
         case Item::ItemType::none: {
@@ -282,7 +311,7 @@ void WindowGrid::onLeftDown(wxMouseEvent &event) {
 void WindowGrid::onRightDown(wxMouseEvent &event) {
     Item currentItem = grid.get(currentCell.y, currentCell.x);
     int cellSize = 128 + 16 * zoomLevels;
-    wxRect affectedRect{CalcScrolledPosition(cellSize * currentCell), wxSize{cellSize, cellSize}};
+    wxRect affectedRect{CalcScrolledPosition(cellSize * currentCell) - wxPoint{5,5}, wxSize{cellSize + 10, cellSize + 10}};
     switch (currentItem.getType()) {
         case Item::ItemType::none:
             event.Skip();
