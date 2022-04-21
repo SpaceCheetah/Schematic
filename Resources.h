@@ -2,8 +2,7 @@
 #include <wx/wx.h>
 
 namespace resources {
-    wxImage getWireImage();
     wxImage getBinImage();
-    wxIconBundle getResistorIconBundle();
+    wxBitmap getWireBitmap(int size);
     wxBitmap getResistorBitmap(int size, bool rotated);
 }

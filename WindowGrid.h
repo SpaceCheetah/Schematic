@@ -30,5 +30,6 @@ private:
     wxPoint currentCell{-1,-1};
     wxPen pen;
     wxMenu resistorMenu{};
+    wxBitmap resistorBitmaps[56];
     wxMenu wireMenu{};
 };

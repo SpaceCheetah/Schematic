@@ -28,42 +28,11 @@ void WindowGrid::OnDraw(wxDC &dc) {
                 }
                 case Item::ItemType::resistor: {
                     std::wstring value = item.getValueStr();
-                    wxGraphicsContext* gc = wxGraphicsContext::CreateFromUnknownDC(dc);
-                    gc->SetPen(pen);
                     if (item.getShape() == Item::HORIZONTAL) {
-                        const wxPoint2DDouble points[] {
-                            wxPoint{cellSize * c, cellSize * r + cellSize / 2},
-                            wxPoint{cellSize * c + cellSize * 9 / 64, cellSize * r + cellSize / 2},
-                            wxPoint{cellSize * c + cellSize * 3 / 16, cellSize * r + cellSize * 19 / 32},
-                            wxPoint{cellSize * c + cellSize * 9 / 32,cellSize * r + cellSize * 13 / 32},
-                            wxPoint{cellSize * c + cellSize * 3 / 8, cellSize * r + cellSize * 19 / 32},
-                            wxPoint{cellSize * c + cellSize * 29 / 64, cellSize * r + cellSize * 13 / 32},
-                            wxPoint{cellSize * c + cellSize * 17 / 32, cellSize * r + cellSize * 19 / 32},
-                            wxPoint{cellSize * c + cellSize * 5 / 8, cellSize * r + cellSize * 13 / 32},
-                            wxPoint{cellSize * c + cellSize * 45 / 64, cellSize * r + cellSize * 19 / 32},
-                            wxPoint{cellSize * c + cellSize * 51 / 64, cellSize * r + cellSize * 13 / 32},
-                            wxPoint{cellSize * c + cellSize * 27 / 32, cellSize * r + cellSize / 2},
-                            wxPoint{cellSize * c + cellSize, cellSize * r + cellSize / 2}};
-                        gc->StrokeLines(sizeof(points) / sizeof(points[0]), points);
-                        delete gc;
+                        dc.DrawBitmap(resistorBitmaps[zoomLevels + 7], cellSize * c, cellSize * r);
                         dc.DrawLabel(value, wxRect{cellSize * c, cellSize * r + cellSize * 4 / 17, cellSize, cellSize}, wxALIGN_CENTER_HORIZONTAL | wxALIGN_TOP);
                     } else {
-                        const wxPoint2DDouble points[] {
-                            wxPoint{cellSize * c + cellSize / 2,cellSize * r},
-                            wxPoint{cellSize * c + cellSize / 2,cellSize * r + cellSize * 9 / 64},
-                            wxPoint{cellSize * c + cellSize * 19 / 32,cellSize * r + cellSize * 3 / 16},
-                            wxPoint{cellSize * c + cellSize * 13 / 32,cellSize * r + cellSize * 9 / 32},
-                            wxPoint{ cellSize * c + cellSize * 19 / 32,cellSize * r + cellSize * 3 / 8},
-                            wxPoint{ cellSize * c + cellSize * 13 / 32,cellSize * r + cellSize * 29 / 64},
-                            wxPoint{ cellSize * c + cellSize * 19 / 32,cellSize * r + cellSize * 17 / 32},
-                            wxPoint{ cellSize * c + cellSize * 13 / 32,cellSize * r + cellSize * 5 / 8},
-                            wxPoint{ cellSize * c + cellSize * 19 / 32,cellSize * r + cellSize * 45 / 64},
-                            wxPoint{ cellSize * c + cellSize * 13 / 32,cellSize * r + cellSize * 51 / 64},
-                            wxPoint{ cellSize * c + cellSize / 2,cellSize * r + cellSize * 27 / 32},
-                            wxPoint{ cellSize * c + cellSize / 2,cellSize * r + cellSize}
-                        };
-                        gc->StrokeLines(sizeof(points) / sizeof(points[0]), points);
-                        delete gc;
+                        dc.DrawBitmap(resistorBitmaps[zoomLevels + 35], cellSize * c, cellSize * r);
                         wxSize textSize = dc.GetTextExtent(value);
                         dc.DrawRotatedText(value, cellSize * c + cellSize * 40 / 51, cellSize * r + cellSize / 2 - textSize.GetWidth() / 2, 270);
                     }
@@ -111,6 +80,13 @@ WindowGrid::WindowGrid(wxWindow *parent, wxWindowID id, const wxPoint &pos, cons
     wireMenu.Append(id::toggle_left, "Toggle left");
     wireMenu.Append(id::toggle_right, "Toggle right");
     wireMenu.Append(id::toggle_down, "Toggle down");
+
+    for(int i = 0; i < 28; i ++) {
+        resistorBitmaps[i] = resources::getResistorBitmap(16 + i * 16, false);
+    }
+    for(int i = 0; i < 28; i ++) {
+        resistorBitmaps[i + 28] = resources::getResistorBitmap(16 + i * 16, true);
+    }
 
     refresh(load.xScroll, load.yScroll);
 }

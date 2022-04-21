@@ -10,5 +10,5 @@ add_executable(schematic AppMain.cpp AppMain.h FrameMain.cpp FrameMain.h id.h Wi
 target_include_directories(schematic PRIVATE ${CMAKE_BINARY_DIR}/vcpkg_installed/x64-windows/include)
 target_link_libraries(schematic ${WX_LIB_DIR}/wxbase31ud.lib ${WX_LIB_DIR}/wxmsw31ud_core.lib ${WX_LIB_DIR}/wxmsw31ud_propgrid.lib)
 target_link_options(schematic PRIVATE "/subsystem:WINDOWS")
-
+target_sources(schematic PRIVATE schematic.manifest)
 add_custom_command(TARGET schematic PRE_BUILD COMMAND ${CMAKE_COMMAND} -E copy_directory ${CMAKE_SOURCE_DIR}/res ${CMAKE_BINARY_DIR}/res)

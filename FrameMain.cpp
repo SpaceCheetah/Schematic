@@ -16,17 +16,29 @@ FrameMain::FrameMain() : wxFrame(nullptr, wxID_ANY, "Schematic", wxDefaultPositi
     Bind(wxEVT_MENU, [this](wxCommandEvent& evt) {onNew();}, id::file_new);
     Bind(wxEVT_CLOSE_WINDOW, &FrameMain::onClose, this);
 
-    wxIconBundle bundle = resources::getResistorIconBundle();
+    wxIconBundle bundle{};
+    wxIcon icon{};
+    icon.CopyFromBitmap(resources::getResistorBitmap(16, false));
+    bundle.AddIcon(icon);
+    icon.CopyFromBitmap(resources::getResistorBitmap(32, false));
+    bundle.AddIcon(icon);
+    icon.CopyFromBitmap(resources::getResistorBitmap(48, false));
+    bundle.AddIcon(icon);
+    icon.CopyFromBitmap(resources::getResistorBitmap(64, false));
+    bundle.AddIcon(icon);
+    icon.CopyFromBitmap(resources::getResistorBitmap(128, false));
+    bundle.AddIcon(icon);
+    icon.CopyFromBitmap(resources::getResistorBitmap(256, false));
+    bundle.AddIcon(icon);
     wxTopLevelWindowMSW::SetIcons(bundle);
-
     windowGrid = nullptr; //toolbar->AddRadioTool sends a Size event, so need to clear windowGrid so that it doesn't try to set the size of an invalid pointer
+    int dip32 = FromDIP(32);
     toolbar = wxFrame::CreateToolBar(wxTB_VERTICAL | wxTB_FLAT | wxTB_NODIVIDER, wxID_ANY);
-    toolbar->AddRadioTool(id::tool_wire, "Wire", wxBitmap{resources::getWireImage()}, wxNullBitmap, "Wire");
-    toolbar->AddRadioTool(id::tool_resistor, "Resistor", wxBitmap{bundle.GetIconOfExactSize(wxSize{32,32})}, wxNullBitmap, "Resistor");
-    toolbar->AddRadioTool(id::tool_bin, "Delete", wxBitmap{resources::getBinImage()}, wxNullBitmap, "Delete");
+    toolbar->AddRadioTool(id::tool_wire, "Wire", resources::getWireBitmap(dip32), wxNullBitmap, "Wire");
+    toolbar->AddRadioTool(id::tool_resistor, "Resistor", resources::getResistorBitmap(dip32, false), wxNullBitmap, "Resistor");
+    toolbar->AddRadioTool(id::tool_bin, "Delete", wxBitmap{resources::getBinImage().Scale(dip32, dip32)}, wxNullBitmap, "Delete");
     toolbar->Realize();
     toolbar->Fit();
-
     fileMenu = new wxMenu();
     fileMenu->Append(id::file_save, "Save (CTRL+S)");
     fileMenu->Append(id::file_save_as, "Save As");

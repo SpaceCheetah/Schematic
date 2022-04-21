@@ -12,16 +12,17 @@ NewSchematicDialog::NewSchematicDialog(wxWindow* parent) : wxDialog(parent, wxID
     xSeparator->SetFont(font);
     numColsCtrl = new wxTextCtrl{this, wxID_ANY, "100", wxDefaultPosition, wxDefaultSize, 0, validator};
     auto* upperSizer = new wxBoxSizer{wxHORIZONTAL};
-    upperSizer->Add(sizeMessage, 0, wxLEFT | wxTOP | wxBOTTOM | wxALIGN_CENTER_VERTICAL, 5);
-    upperSizer->Add(numRowsCtrl, 1, wxTOP | wxBOTTOM | wxALIGN_CENTER_VERTICAL, 5);
-    upperSizer->Add(xSeparator, 0, wxALL | wxALIGN_CENTER_VERTICAL, 5);
-    upperSizer->Add(numColsCtrl, 1, wxRIGHT | wxTOP | wxBOTTOM | wxALIGN_CENTER_VERTICAL, 5);
+    int dip5 = FromDIP(5);
+    upperSizer->Add(sizeMessage, 0, wxLEFT | wxTOP | wxBOTTOM | wxALIGN_CENTER_VERTICAL, dip5);
+    upperSizer->Add(numRowsCtrl, 1, wxTOP | wxBOTTOM | wxALIGN_CENTER_VERTICAL, dip5);
+    upperSizer->Add(xSeparator, 0, wxALL | wxALIGN_CENTER_VERTICAL, dip5);
+    upperSizer->Add(numColsCtrl, 1, wxRIGHT | wxTOP | wxBOTTOM | wxALIGN_CENTER_VERTICAL, dip5);
     auto* mainSizer = new wxBoxSizer{wxVERTICAL};
     mainSizer->Add(upperSizer);
     wxSizer* buttonSizer = wxDialog::CreateButtonSizer(wxOK | wxCANCEL);
     if(buttonSizer != nullptr) {
         buttonSizer->Layout();
-        mainSizer->Add(buttonSizer, 0, wxBOTTOM | wxALIGN_CENTER_HORIZONTAL, 5);
+        mainSizer->Add(buttonSizer, 0, wxBOTTOM | wxALIGN_CENTER_HORIZONTAL, dip5);
     }
     mainSizer->Layout();
     SetSizerAndFit(mainSizer);
