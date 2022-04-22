@@ -23,13 +23,16 @@ private:
     void onLeftDown(wxMouseEvent& event);
     void onRightDown(wxMouseEvent& event);
     void refresh(int xPos, int yPos);
-    void placePartial(wxPoint cell, Item item);
+    void placePartial(wxPoint cell, const Item& item);
     Grid grid;
     wxFont font;
     wxPoint lastCell{-1,-1};
     wxPoint currentCell{-1,-1};
     wxPen pen;
     wxMenu resistorMenu{};
-    wxBitmap resistorBitmaps[56];
     wxMenu wireMenu{};
+    wxMenu voltOrCurrentSourceMenu{};
+    wxBitmap resistorBitmaps[2];
+    wxBitmap voltSourceBitmaps[8];
+    wxBitmap ampSourceBitmaps[8];
 };
