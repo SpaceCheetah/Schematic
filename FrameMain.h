@@ -13,9 +13,9 @@ private:
     void onLoad();
     void onNew();
     void onClose(wxCloseEvent& evt);
+    void setGridDotSize(wxCommandEvent& evt);
     bool confirmClose(const wxString& message);
     wxToolBar* toolbar;
-    wxMenu* fileMenu;
     wxMenuBar* menuBar;
     WindowGrid* windowGrid;
     std::filesystem::path file{};

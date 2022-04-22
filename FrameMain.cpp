@@ -2,7 +2,10 @@
 #include "id.h"
 #include "Resources.h"
 #include "NewSchematicDialog.h"
+#include "DotSizeDialog.h"
 #include <fstream>
+
+//TODO: add ctrl+z and ctrl+y (undo/redo)
 
 FrameMain::FrameMain() : wxFrame(nullptr, wxID_ANY, "Schematic", wxDefaultPosition, wxDefaultSize,wxDEFAULT_FRAME_STYLE | wxMAXIMIZE) {
     windowGrid = nullptr; //toolbar->AddRadioTool sends a Size event, so need to clear windowGrid so that it doesn't try to set the size of an invalid pointer
@@ -18,6 +21,7 @@ FrameMain::FrameMain() : wxFrame(nullptr, wxID_ANY, "Schematic", wxDefaultPositi
     Bind(wxEVT_MENU, [this](wxCommandEvent& evt) {onSave(true);}, id::file_save_as);
     Bind(wxEVT_MENU, [this](wxCommandEvent& evt) {onLoad();}, id::file_load);
     Bind(wxEVT_MENU, [this](wxCommandEvent& evt) {onNew();}, id::file_new);
+    Bind(wxEVT_MENU, &FrameMain::setGridDotSize, this, id::view_dot_size);
     Bind(wxEVT_CLOSE_WINDOW, &FrameMain::onClose, this);
 
     wxIconBundle bundle{};
@@ -46,13 +50,16 @@ FrameMain::FrameMain() : wxFrame(nullptr, wxID_ANY, "Schematic", wxDefaultPositi
     toolbar->Realize();
     toolbar->Fit();
 
-    fileMenu = new wxMenu();
+    auto* fileMenu = new wxMenu();
     fileMenu->Append(id::file_save, "Save (CTRL+S)");
     fileMenu->Append(id::file_save_as, "Save As");
     fileMenu->Append(id::file_load, "Load (CTRL+L)");
     fileMenu->Append(id::file_new, "New (CTRL+N)");
+    auto* viewMenu = new wxMenu();
+    viewMenu->Append(id::view_dot_size, "Set grid dot size");
     menuBar = new wxMenuBar();
     menuBar->Append(fileMenu, "File");
+    menuBar->Append(viewMenu, "View");
     wxFrame::SetMenuBar(menuBar);
 
     windowGrid = new WindowGrid(this, wxID_ANY, wxDefaultPosition, GetClientSize());
@@ -164,4 +171,9 @@ void FrameMain::onClose(wxCloseEvent& evt) {
         return;
     }
     Destroy();
+}
+
+void FrameMain::setGridDotSize(wxCommandEvent& evt) {
+    auto* dialog = new DotSizeDialog{this, *windowGrid};
+    dialog->Show();
 }

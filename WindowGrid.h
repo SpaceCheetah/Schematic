@@ -6,8 +6,8 @@ class WindowGrid : public wxScrolledCanvas {
 public:
     struct LoadStruct {
         Grid grid;
-        int zoom, xScroll, yScroll;
-        explicit LoadStruct(Grid  grid = Grid{}, int zoom = 0, int xScroll = 0, int yScroll = 0);
+        int zoom, xScroll, yScroll, dotSize;
+        explicit LoadStruct(Grid  grid = Grid{}, int zoom = 0, int xScroll = 0, int yScroll = 0, int dotSize = 3);
     };
     explicit WindowGrid(wxWindow* parent = nullptr, wxWindowID id = wxID_ANY, const wxPoint& pos = wxDefaultPosition, const wxSize& size = wxDefaultSize, const LoadStruct& load = LoadStruct{});
     Item::ItemType selectedTool{Item::ItemType::wire};
@@ -16,6 +16,8 @@ public:
     void save(std::ofstream& ofstream);
     void reload(const LoadStruct& load);
     static LoadStruct load(std::ifstream& ifstream);
+    int getDotSize() const;
+    void setDotSize(int size);
 private:
     void OnDraw(wxDC& dc) override;
     void onScroll(wxMouseEvent& event);
@@ -35,4 +37,5 @@ private:
     wxBitmap resistorBitmaps[2];
     wxBitmap voltSourceBitmaps[8];
     wxBitmap ampSourceBitmaps[8];
+    int dotSize{3};
 };

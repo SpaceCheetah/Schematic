@@ -21,6 +21,8 @@ namespace id {
         file_save,
         file_save_as,
         file_load,
-        dependent
+        view_dot_size,
+        dependent,
+        dot_size_slider
     };
 }

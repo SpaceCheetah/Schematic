@@ -28,7 +28,9 @@ void WindowGrid::OnDraw(wxDC &dc) {
             Item item = grid.get(r, c);
             switch (item.getType()) {
                 case Item::ItemType::none: {
-                    dc.DrawCircle(cellSize / 2 + cellSize * c, cellSize / 2 + cellSize * r, std::max(cellSize * 3 / 128, 1));
+                    if(dotSize != -1) {
+                        dc.DrawCircle(cellSize / 2 + cellSize * c, cellSize / 2 + cellSize * r, std::max(cellSize * dotSize / 128, 1));
+                    }
                     break;
                 }
                 case Item::ItemType::resistor: {
@@ -131,6 +133,7 @@ void WindowGrid::refresh(int xPos, int yPos) {
 void WindowGrid::reload(const WindowGrid::LoadStruct& load) {
     grid = load.grid;
     zoomLevels = load.zoom;
+    dotSize = load.dotSize;
     dirty = false;
     refresh(load.xScroll, load.yScroll);
 }
@@ -461,7 +464,7 @@ void WindowGrid::save(std::ofstream& ofstream) {
     ofstream.write("schematic", 10);
     int xScroll, yScroll;
     GetViewStart(&xScroll, &yScroll);
-    uint32_t toWrite[] = {static_cast<uint32_t>(zoomLevels), static_cast<uint32_t>(xScroll), static_cast<uint32_t>(yScroll), grid.getWidth(), grid.getHeight()};
+    uint32_t toWrite[] = {static_cast<uint32_t>(zoomLevels), static_cast<uint32_t>(xScroll), static_cast<uint32_t>(yScroll), static_cast<uint32_t>(dotSize), grid.getWidth(), grid.getHeight()};
     ofstream.write(reinterpret_cast<const char*>(toWrite), sizeof(toWrite));
     size_t numElements = grid.gridMap.size();
     ofstream.write(reinterpret_cast<const char*>(&numElements), sizeof(size_t));
@@ -478,7 +481,7 @@ WindowGrid::LoadStruct WindowGrid::load(std::ifstream& ifstream) {
     if(std::string{str} != "schematic") {
         throw std::runtime_error{"File invalid"};
     }
-    uint32_t readArr[5];
+    uint32_t readArr[6];
     ifstream.read(reinterpret_cast<char *>(readArr), sizeof(readArr));
     size_t numElements;
     ifstream.read(reinterpret_cast<char *>(&numElements), sizeof(size_t));
@@ -489,11 +492,21 @@ WindowGrid::LoadStruct WindowGrid::load(std::ifstream& ifstream) {
         pair.second = Item{ifstream};
         gridMap.insert(pair);
     }
-    Grid grid{readArr[3], readArr[4], gridMap};
-    return WindowGrid::LoadStruct{grid, static_cast<int>(readArr[0]), static_cast<int>(readArr[1]), static_cast<int>(readArr[2])};
+    Grid grid{readArr[4], readArr[5], gridMap};
+    return WindowGrid::LoadStruct{grid, static_cast<int>(readArr[0]), static_cast<int>(readArr[1]), static_cast<int>(readArr[2]), static_cast<int>(readArr[3])};
 }
 
-WindowGrid::LoadStruct::LoadStruct(Grid grid, int zoom, int xScroll, int yScroll) : grid{std::move(grid)}, zoom{zoom}, xScroll{xScroll}, yScroll{yScroll} {}
+int WindowGrid::getDotSize() const {
+    return dotSize;
+}
+
+void WindowGrid::setDotSize(int size) {
+    dotSize = size;
+    dirty = true;
+    Refresh();
+}
+
+WindowGrid::LoadStruct::LoadStruct(Grid grid, int zoom, int xScroll, int yScroll, int dotSize) : grid{std::move(grid)}, zoom{zoom}, xScroll{xScroll}, yScroll{yScroll}, dotSize{dotSize} {}
 
 namespace {
     void drawAmpOrVoltSource(const Item& item, int cellSize, wxBitmap* bitmaps, int c, int r, wxDC& dc) {
