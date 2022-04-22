@@ -5,7 +5,7 @@
 
 class FrameMain : public wxFrame {
 public:
-    FrameMain();
+    FrameMain(const std::wstring& file = {});
 private:
     void onSize(wxSizeEvent& evt);
     void onChar(wxKeyEvent& evt);

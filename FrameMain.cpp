@@ -5,7 +5,8 @@
 #include "DotSizeDialog.h"
 #include <fstream>
 
-FrameMain::FrameMain() : wxFrame(nullptr, wxID_ANY, "Schematic", wxDefaultPosition, wxDefaultSize,wxDEFAULT_FRAME_STYLE | wxMAXIMIZE) {
+FrameMain::FrameMain(const std::wstring& fileIn) : wxFrame(nullptr, wxID_ANY, "Schematic", wxDefaultPosition, wxDefaultSize,wxDEFAULT_FRAME_STYLE) {
+    this->Maximize();
     windowGrid = nullptr; //toolbar->AddRadioTool sends a Size event, so need to clear windowGrid so that it doesn't try to set the size of an invalid pointer
 
     Bind(wxEVT_SIZE, &FrameMain::onSize, this);
@@ -24,20 +25,7 @@ FrameMain::FrameMain() : wxFrame(nullptr, wxID_ANY, "Schematic", wxDefaultPositi
     Bind(wxEVT_MENU, [this](wxCommandEvent& evt) {windowGrid->redo();}, wxID_REDO);
     Bind(wxEVT_CLOSE_WINDOW, &FrameMain::onClose, this);
 
-    wxIconBundle bundle{};
-    wxIcon icon{};
-    icon.CopyFromBitmap(resources::getResistorBitmap(16, false));
-    bundle.AddIcon(icon);
-    icon.CopyFromBitmap(resources::getResistorBitmap(32, false));
-    bundle.AddIcon(icon);
-    icon.CopyFromBitmap(resources::getResistorBitmap(48, false));
-    bundle.AddIcon(icon);
-    icon.CopyFromBitmap(resources::getResistorBitmap(64, false));
-    bundle.AddIcon(icon);
-    icon.CopyFromBitmap(resources::getResistorBitmap(128, false));
-    bundle.AddIcon(icon);
-    icon.CopyFromBitmap(resources::getResistorBitmap(256, false));
-    bundle.AddIcon(icon);
+    wxIconBundle bundle = resources::getResistorIconBundle();
     wxTopLevelWindowMSW::SetIcons(bundle);
 
     int dip32 = FromDIP(32);
@@ -66,7 +54,15 @@ FrameMain::FrameMain() : wxFrame(nullptr, wxID_ANY, "Schematic", wxDefaultPositi
     menuBar->Append(editMenu, "Edit");
     wxFrame::SetMenuBar(menuBar);
 
-    windowGrid = new WindowGrid(this, wxID_ANY, wxDefaultPosition, GetClientSize());
+    if(fileIn.empty()) {
+        windowGrid = new WindowGrid(this, wxID_ANY, wxDefaultPosition, GetClientSize());
+    } else {
+        std::filesystem::path path{fileIn};
+        std::ifstream ifstream{path, std::ios_base::binary};
+        WindowGrid::LoadStruct load = WindowGrid::load(ifstream);
+        file = path;
+        windowGrid = new WindowGrid(this, wxID_ANY, wxDefaultPosition, GetClientSize(), load);
+    }
     windowGrid->SetBackgroundColour(wxTheColourDatabase->Find("LIGHT GREY"));
 }
 

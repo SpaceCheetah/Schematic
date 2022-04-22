@@ -39,5 +39,5 @@ private:
     wxBitmap resistorBitmaps[2];
     wxBitmap voltSourceBitmaps[8];
     wxBitmap ampSourceBitmaps[8];
-    int dotSize{3};
+    int dotSize;
 };

@@ -82,7 +82,7 @@ void WindowGrid::OnDraw(wxDC &dc) {
 }
 
 WindowGrid::WindowGrid(wxWindow *parent, wxWindowID id, const wxPoint &pos, const wxSize &size, const LoadStruct& load)
-        : wxScrolledCanvas(parent, id, pos, size), grid{load.grid}, zoomLevels{load.zoom} {
+        : wxScrolledCanvas(parent, id, pos, size), grid{load.grid}, zoomLevels{load.zoom}, dotSize{load.dotSize} {
     Bind(wxEVT_MOUSEWHEEL, &WindowGrid::onScroll, this);
     Bind(wxEVT_LEFT_DOWN, &WindowGrid::onLeftDown, this);
     Bind(wxEVT_MOTION, &WindowGrid::onMotion, this);

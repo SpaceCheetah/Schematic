@@ -77,6 +77,10 @@ wxBitmap resources::getResistorBitmap(int size, bool rotated) {
     return bitmap;
 }
 
+wxIconBundle resources::getResistorIconBundle() {
+    return wxIconBundle("res/resistor-multires.ico", wxBITMAP_TYPE_ICO);
+}
+
 //Only called once, so no need to cache
 wxBitmap resources::getWireBitmap(int size) {
     wxBitmap bitmap{initBitmap(size)};
