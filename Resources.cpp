@@ -2,11 +2,6 @@
 #include "Item.h"
 #include <wx/graphics.h>
 
-wxImage resources::getBinImage() {
-    static wxImage binImage{"res/bin.png", wxBITMAP_TYPE_PNG};
-    return binImage;
-}
-
 static_assert(sizeof(int) == sizeof(size_t) / 2); //Required for hashing
 
 namespace {
@@ -40,6 +35,18 @@ namespace {
             return (static_cast<size_t>(key.first) << (sizeof(int) * 8)) | key.second;
         }
     };
+}
+
+wxBitmap resources::getBinBitmap(int size) { //doing it this way instead of image.Scale to get antialiasing
+    static wxImage binImage{"res/bin.png", wxBITMAP_TYPE_PNG};
+    wxBitmap binFullBitmap{binImage};
+    wxBitmap bitmap{initBitmap(size)};
+    wxMemoryDC dc{bitmap};
+    wxGraphicsContext* context = wxGraphicsContext::Create(dc);
+    context->DrawBitmap(binFullBitmap, 0, 0, size, size);
+    delete context;
+    dc.SelectObject(wxNullBitmap);
+    return bitmap;
 }
 
 wxBitmap resources::getResistorBitmap(int size, bool rotated) {

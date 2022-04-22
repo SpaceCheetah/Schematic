@@ -506,6 +506,20 @@ void WindowGrid::setDotSize(int size) {
     Refresh();
 }
 
+void WindowGrid::undo() {
+    if(grid.undo()) {
+        dirty = true;
+        Refresh();
+    }
+}
+
+void WindowGrid::redo() {
+    if(grid.redo()) {
+        dirty = true;
+        Refresh();
+    }
+}
+
 WindowGrid::LoadStruct::LoadStruct(Grid grid, int zoom, int xScroll, int yScroll, int dotSize) : grid{std::move(grid)}, zoom{zoom}, xScroll{xScroll}, yScroll{yScroll}, dotSize{dotSize} {}
 
 namespace {

@@ -5,8 +5,6 @@
 #include "DotSizeDialog.h"
 #include <fstream>
 
-//TODO: add ctrl+z and ctrl+y (undo/redo)
-
 FrameMain::FrameMain() : wxFrame(nullptr, wxID_ANY, "Schematic", wxDefaultPosition, wxDefaultSize,wxDEFAULT_FRAME_STYLE | wxMAXIMIZE) {
     windowGrid = nullptr; //toolbar->AddRadioTool sends a Size event, so need to clear windowGrid so that it doesn't try to set the size of an invalid pointer
 
@@ -22,6 +20,8 @@ FrameMain::FrameMain() : wxFrame(nullptr, wxID_ANY, "Schematic", wxDefaultPositi
     Bind(wxEVT_MENU, [this](wxCommandEvent& evt) {onLoad();}, id::file_load);
     Bind(wxEVT_MENU, [this](wxCommandEvent& evt) {onNew();}, id::file_new);
     Bind(wxEVT_MENU, &FrameMain::setGridDotSize, this, id::view_dot_size);
+    Bind(wxEVT_MENU, [this](wxCommandEvent& evt) {windowGrid->undo();}, wxID_UNDO);
+    Bind(wxEVT_MENU, [this](wxCommandEvent& evt) {windowGrid->redo();}, wxID_REDO);
     Bind(wxEVT_CLOSE_WINDOW, &FrameMain::onClose, this);
 
     wxIconBundle bundle{};
@@ -46,7 +46,7 @@ FrameMain::FrameMain() : wxFrame(nullptr, wxID_ANY, "Schematic", wxDefaultPositi
     toolbar->AddRadioTool(id::tool_resistor, "Resistor", resources::getResistorBitmap(dip32, false), wxNullBitmap, "Resistor");
     toolbar->AddRadioTool(id::tool_volt_source, "Voltage Source", resources::getVoltSourceBitmap(dip32, Item::RIGHT), wxNullBitmap, "Voltage Source");
     toolbar->AddRadioTool(id::tool_amp_source, "Current Source", resources::getAmpSourceBitmap(dip32, Item::RIGHT), wxNullBitmap, "Current Source");
-    toolbar->AddRadioTool(id::tool_bin, "Delete", wxBitmap{resources::getBinImage().Scale(dip32, dip32)}, wxNullBitmap, "Delete");
+    toolbar->AddRadioTool(id::tool_bin, "Delete", resources::getBinBitmap(dip32), wxNullBitmap, "Delete");
     toolbar->Realize();
     toolbar->Fit();
 
@@ -57,9 +57,13 @@ FrameMain::FrameMain() : wxFrame(nullptr, wxID_ANY, "Schematic", wxDefaultPositi
     fileMenu->Append(id::file_new, "New (CTRL+N)");
     auto* viewMenu = new wxMenu();
     viewMenu->Append(id::view_dot_size, "Set grid dot size");
+    auto* editMenu = new wxMenu();
+    editMenu->Append(wxID_UNDO, "Undo (CTRL+Z)");
+    editMenu->Append(wxID_REDO, "Redo (CTRL+Y)");
     menuBar = new wxMenuBar();
     menuBar->Append(fileMenu, "File");
     menuBar->Append(viewMenu, "View");
+    menuBar->Append(editMenu, "Edit");
     wxFrame::SetMenuBar(menuBar);
 
     windowGrid = new WindowGrid(this, wxID_ANY, wxDefaultPosition, GetClientSize());
@@ -107,6 +111,16 @@ void FrameMain::onChar(wxKeyEvent& evt) {
         case 'L':
             if(evt.GetModifiers() == wxMOD_CONTROL) {
                 onLoad();
+            }
+            break;
+        case 'Z':
+            if(evt.GetModifiers() == wxMOD_CONTROL) {
+                windowGrid->undo();
+            }
+            break;
+        case 'Y':
+            if(evt.GetModifiers() == wxMOD_CONTROL) {
+                windowGrid->redo();
             }
             break;
     }

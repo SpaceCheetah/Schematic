@@ -6,6 +6,9 @@ class Grid {
     uint32_t width;
     uint32_t height;
     void rangeCheck(uint32_t row, uint32_t col) const;
+    std::pair<uint64_t, Item> undoHistory[100];
+    int undoOperations{0};
+    int redoOperations{0};
 public:
     //Using map with uint64_t key as an efficient 2d array with a large number of elements
     std::unordered_map<uint64_t, Item> gridMap;
@@ -15,4 +18,7 @@ public:
     void set(uint32_t row, uint32_t col, Item item);
     uint32_t getWidth() const;
     uint32_t getHeight() const;
+    void doOperation(std::pair<uint64_t, Item>& operation);
+    bool undo();
+    bool redo();
 };

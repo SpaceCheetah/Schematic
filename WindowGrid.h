@@ -18,6 +18,8 @@ public:
     static LoadStruct load(std::ifstream& ifstream);
     int getDotSize() const;
     void setDotSize(int size);
+    void undo();
+    void redo();
 private:
     void OnDraw(wxDC& dc) override;
     void onScroll(wxMouseEvent& event);
