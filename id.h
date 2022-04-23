@@ -9,6 +9,7 @@ namespace id {
         tool_volt_source,
         tool_amp_source,
         tool_bin,
+        tool_capacitor,
         rotate,
         rotate_ccw,
         flip,

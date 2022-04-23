@@ -5,7 +5,7 @@
 class Item {
 public:
     enum class ItemType {
-        none, resistor, wire, volt_source, amp_source
+        none, resistor, wire, volt_source, amp_source, capacitor
     };
 
     constexpr static int HORIZONTAL = 0;

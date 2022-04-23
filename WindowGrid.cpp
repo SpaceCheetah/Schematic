@@ -9,7 +9,6 @@
 
 //Helper functions defined at end of file
 namespace {
-    void drawAmpOrVoltSource(const Item& item, int cellSize, wxBitmap* bitmaps, int c, int r, wxDC& dc);
     Item valueDialog(const Item& currentItem, bool numeric);
     int getDirection(const wxPoint& currentCell, const wxPoint& lastCell);
     int getOppositeDirection(int direction);
@@ -45,6 +44,18 @@ void WindowGrid::OnDraw(wxDC &dc) {
                     }
                     break;
                 }
+                case Item::ItemType::capacitor: {
+                    std::wstring value = item.getValueStr();
+                    if (item.getShape() == Item::HORIZONTAL) {
+                        dc.DrawBitmap(capacitorBitmaps[0], cellSize * c, cellSize * r);
+                        dc.DrawLabel(value, wxRect{cellSize * c, cellSize * r + cellSize * 2 / 17, cellSize, cellSize}, wxALIGN_CENTER_HORIZONTAL | wxALIGN_TOP);
+                    } else {
+                        dc.DrawBitmap(capacitorBitmaps[1], cellSize * c, cellSize * r);
+                        wxSize textSize = dc.GetTextExtent(value);
+                        dc.DrawRotatedText(value, cellSize * c + cellSize * 31 / 34, cellSize * r + cellSize / 2 - textSize.GetWidth() / 2, 270);
+                    }
+                    break;
+                }
                 case Item::ItemType::wire: {
                     int directions = 0;
                     wxPoint middle = wxPoint{cellSize / 2 + cellSize * c, cellSize / 2 + cellSize * r};
@@ -69,12 +80,32 @@ void WindowGrid::OnDraw(wxDC &dc) {
                     }
                     break;
                 }
-                case Item::ItemType::volt_source: {
-                    drawAmpOrVoltSource(item, cellSize, voltSourceBitmaps, c, r, dc);
+                case Item::ItemType::amp_source: case Item::ItemType::volt_source: {
+                    wxBitmap* bitmaps = item.getType() == Item::ItemType::amp_source ? ampSourceBitmaps : voltSourceBitmaps;
+                    std::wstring value = item.getValueStr();
+                    int bitmapIndex;
+                    if(item.getShape() & Item::UP) bitmapIndex = 0;
+                    else if(item.getShape() & Item::DOWN) bitmapIndex = 1;
+                    else if(item.getShape() & Item::RIGHT) bitmapIndex = 2;
+                    else bitmapIndex = 3;
+                    if(item.getShape() & Item::DEPENDENT) bitmapIndex += 4;
+                    dc.DrawBitmap(bitmaps[bitmapIndex], cellSize * c, cellSize * r);
+                    if(item.getShape() & Item::DEPENDENT) {
+                        if ((item.getShape() & Item::LEFT) || (item.getShape() & Item::RIGHT)) {
+                            dc.DrawLabel(value, wxRect{cellSize * c, cellSize * r, cellSize, cellSize}, wxALIGN_CENTER_HORIZONTAL | wxALIGN_TOP);
+                        } else {
+                            wxSize textSize = dc.GetTextExtent(value);
+                            dc.DrawRotatedText(value, cellSize * (c + 1) + textSize.GetWidth() / 10, cellSize * r + cellSize / 2 - textSize.GetWidth() / 2, 270);
+                        }
+                    } else {
+                        if ((item.getShape() & Item::LEFT) || (item.getShape() & Item::RIGHT)) {
+                            dc.DrawLabel(value, wxRect{cellSize * c, cellSize * r + cellSize * 7 / 34, cellSize, cellSize}, wxALIGN_CENTER_HORIZONTAL | wxALIGN_TOP);
+                        } else {
+                            wxSize textSize = dc.GetTextExtent(value);
+                            dc.DrawRotatedText(value, cellSize * c + cellSize * 83 / 102, cellSize * r + cellSize / 2 - textSize.GetWidth() / 2, 270);
+                        }
+                    }
                     break;
-                }
-                case Item::ItemType::amp_source: {
-                    drawAmpOrVoltSource(item, cellSize, ampSourceBitmaps, c, r, dc);
                 }
             }
         }
@@ -88,17 +119,17 @@ WindowGrid::WindowGrid(wxWindow *parent, wxWindowID id, const wxPoint &pos, cons
     Bind(wxEVT_MOTION, &WindowGrid::onMotion, this);
     Bind(wxEVT_RIGHT_DOWN, &WindowGrid::onRightDown, this);
 
-    resistorMenu.Append(id::set_value, "Set value");
-    resistorMenu.Append(id::rotate, "Rotate");
+    twoWayMenu.Append(id::set_value, "Set value");
+    twoWayMenu.Append(id::rotate, "Rotate");
     wireMenu.Append(id::toggle_up, "Toggle up");
     wireMenu.Append(id::toggle_left, "Toggle left");
     wireMenu.Append(id::toggle_right, "Toggle right");
     wireMenu.Append(id::toggle_down, "Toggle down");
-    voltOrCurrentSourceMenu.Append(id::set_value, "Set value");
-    voltOrCurrentSourceMenu.Append(id::rotate, "Rotate CW");
-    voltOrCurrentSourceMenu.Append(id::rotate_ccw, "Rotate CCW");
-    voltOrCurrentSourceMenu.Append(id::flip, "Flip");
-    voltOrCurrentSourceMenu.Append(id::dependent, "Toggle dependent");
+    fourWayMenu.Append(id::set_value, "Set value");
+    fourWayMenu.Append(id::rotate, "Rotate CW");
+    fourWayMenu.Append(id::rotate_ccw, "Rotate CCW");
+    fourWayMenu.Append(id::flip, "Flip");
+    fourWayMenu.Append(id::dependent, "Toggle dependent");
 
     refresh(load.xScroll, load.yScroll);
 }
@@ -127,6 +158,8 @@ void WindowGrid::refresh(int xPos, int yPos) {
     ampSourceBitmaps[5] = resources::getAmpSourceBitmap(size, Item::DOWN | Item::DEPENDENT);
     ampSourceBitmaps[6] = resources::getAmpSourceBitmap(size, Item::RIGHT | Item::DEPENDENT);
     ampSourceBitmaps[7] = resources::getAmpSourceBitmap(size, Item::LEFT | Item::DEPENDENT);
+    capacitorBitmaps[0] = resources::getCapacitorBitmap(size, false);
+    capacitorBitmaps[1] = resources::getCapacitorBitmap(size, true);
     Refresh();
 }
 
@@ -216,6 +249,13 @@ void WindowGrid::onMotion(wxMouseEvent &event) {
                     placePartial(currentCell, Item{Item::ItemType::amp_source, getDirection(currentCell, lastCell), 10});
                     break;
                 }
+                case Item::ItemType::capacitor:
+                    int shape = Item::VERTICAL;
+                    if (lastCell.x != currentCell.x) {
+                        shape = Item::HORIZONTAL;
+                    }
+                    placePartial(currentCell, Item{Item::ItemType::capacitor, shape, 1e-4});
+                    break;
             }
         }
     }
@@ -254,21 +294,6 @@ void WindowGrid::placePartial(wxPoint cell, const Item& item) {
             }
             break;
         }
-        case Item::ItemType::resistor: {
-            if (currentItem.getType() == Item::ItemType::resistor) {
-                if (currentItem.getShape() != item.getShape()) {
-                    Item newItem{Item::ItemType::resistor, item.getShape(), currentItem.getValue(), currentItem.getExtraData()};
-                    grid.set(cell.y, cell.x, newItem);
-                    dirty = true;
-                    RefreshRect(affectedRect);
-                }
-            } else if (currentItem.getType() == Item::ItemType::none || currentItem.getType() == Item::ItemType::wire) {
-                grid.set(cell.y, cell.x, item);
-                dirty = true;
-                RefreshRect(affectedRect);
-            }
-            break;
-        }
         case Item::ItemType::wire: {
             if (currentItem.getType() == Item::ItemType::none) {
                 grid.set(cell.y, cell.x, item);
@@ -282,25 +307,10 @@ void WindowGrid::placePartial(wxPoint cell, const Item& item) {
             }
             break;
         }
-        case Item::ItemType::volt_source: {
-            if (currentItem.getType() == Item::ItemType::volt_source) {
+        case Item::ItemType::resistor: case Item::ItemType::volt_source: case Item::ItemType::amp_source: case Item::ItemType::capacitor: {
+            if (currentItem.getType() == item.getType()) {
                 if (currentItem.getShape() != item.getShape()) {
-                    Item newItem{Item::ItemType::volt_source, item.getShape(), currentItem.getValue(), currentItem.getExtraData()};
-                    grid.set(cell.y, cell.x, newItem);
-                    dirty = true;
-                    RefreshRect(affectedRect);
-                }
-            } else if (currentItem.getType() == Item::ItemType::none || currentItem.getType() == Item::ItemType::wire) {
-                grid.set(cell.y, cell.x, item);
-                dirty = true;
-                RefreshRect(affectedRect);
-            }
-            break;
-        }
-        case Item::ItemType::amp_source: {
-            if (currentItem.getType() == Item::ItemType::amp_source) {
-                if (currentItem.getShape() != item.getShape()) {
-                    Item newItem{Item::ItemType::amp_source, item.getShape(), currentItem.getValue(), currentItem.getExtraData()};
+                    Item newItem{item.getType(), item.getShape(), currentItem.getValue(), currentItem.getExtraData()};
                     grid.set(cell.y, cell.x, newItem);
                     dirty = true;
                     RefreshRect(affectedRect);
@@ -341,6 +351,14 @@ void WindowGrid::onLeftDown(wxMouseEvent &event) {
                 placePartial(currentCell, Item{Item::ItemType::amp_source, getDirection(currentCell, lastCell), 10});
                 break;
             }
+            case Item::ItemType::capacitor: {
+                int shape = Item::VERTICAL;
+                if (lastCell.x != currentCell.x) {
+                    shape = Item::HORIZONTAL;
+                }
+                placePartial(currentCell, Item{Item::ItemType::capacitor, shape, 1e-4});
+                break;
+            }
         }
     }
     event.Skip();
@@ -352,11 +370,11 @@ void WindowGrid::onRightDown(wxMouseEvent &event) {
     wxRect affectedRect{CalcScrolledPosition(cellSize * currentCell) - wxPoint{5,5}, wxSize{cellSize + 10, cellSize + 10}};
     switch (currentItem.getType()) {
         case Item::ItemType::none: break;
-        case Item::ItemType::resistor: {
-            int response = GetPopupMenuSelectionFromUser(resistorMenu);
+        case Item::ItemType::resistor: case Item::ItemType::capacitor: {
+            int response = GetPopupMenuSelectionFromUser(twoWayMenu);
             switch (response) {
                 case id::rotate: {
-                    Item item{Item::ItemType::resistor, currentItem.getShape() == Item::HORIZONTAL ? Item::VERTICAL : Item::HORIZONTAL, 0};
+                    Item item{currentItem.getType(), currentItem.getShape() == Item::HORIZONTAL ? Item::VERTICAL : Item::HORIZONTAL, 0};
                     placePartial(currentCell, item);
                     break;
                 }
@@ -405,9 +423,9 @@ void WindowGrid::onRightDown(wxMouseEvent &event) {
             }
             break;
         }
-        case Item::ItemType::amp_source: //Intentional fall-through
+        case Item::ItemType::amp_source:
         case Item::ItemType::volt_source: {
-            int response = GetPopupMenuSelectionFromUser(voltOrCurrentSourceMenu);
+            int response = GetPopupMenuSelectionFromUser(fourWayMenu);
             switch (response) {
                 case id::rotate: {
                     int shape = currentItem.getShape() & Item::DEPENDENT;
@@ -523,31 +541,6 @@ void WindowGrid::redo() {
 WindowGrid::LoadStruct::LoadStruct(Grid grid, int zoom, int xScroll, int yScroll, int dotSize) : grid{std::move(grid)}, zoom{zoom}, xScroll{xScroll}, yScroll{yScroll}, dotSize{dotSize} {}
 
 namespace {
-    void drawAmpOrVoltSource(const Item& item, int cellSize, wxBitmap* bitmaps, int c, int r, wxDC& dc) {
-        std::wstring value = item.getValueStr();
-        int bitmapIndex;
-        if(item.getShape() & Item::UP) bitmapIndex = 0;
-        else if(item.getShape() & Item::DOWN) bitmapIndex = 1;
-        else if(item.getShape() & Item::RIGHT) bitmapIndex = 2;
-        else bitmapIndex = 3;
-        if(item.getShape() & Item::DEPENDENT) bitmapIndex += 4;
-        dc.DrawBitmap(bitmaps[bitmapIndex], cellSize * c, cellSize * r);
-        if(item.getShape() & Item::DEPENDENT) {
-            if ((item.getShape() & Item::LEFT) || (item.getShape() & Item::RIGHT)) {
-                dc.DrawLabel(value, wxRect{cellSize * c, cellSize * r, cellSize, cellSize}, wxALIGN_CENTER_HORIZONTAL | wxALIGN_TOP);
-            } else {
-                wxSize textSize = dc.GetTextExtent(value);
-                dc.DrawRotatedText(value, cellSize * (c + 1) + textSize.GetWidth() / 10, cellSize * r + cellSize / 2 - textSize.GetWidth() / 2, 270);
-            }
-        } else {
-            if ((item.getShape() & Item::LEFT) || (item.getShape() & Item::RIGHT)) {
-                dc.DrawLabel(value, wxRect{cellSize * c, cellSize * r + cellSize * 7 / 34, cellSize, cellSize}, wxALIGN_CENTER_HORIZONTAL | wxALIGN_TOP);
-            } else {
-                wxSize textSize = dc.GetTextExtent(value);
-                dc.DrawRotatedText(value, cellSize * c + cellSize * 83 / 102, cellSize * r + cellSize / 2 - textSize.GetWidth() / 2, 270);
-            }
-        }
-    }
     Item valueDialog(const Item& currentItem, bool numeric) {
         wxString valueStr;
         if(currentItem.getExtraData().empty() && numeric) {

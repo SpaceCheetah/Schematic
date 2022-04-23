@@ -33,11 +33,12 @@ private:
     wxPoint lastCell{-1,-1};
     wxPoint currentCell{-1,-1};
     wxPen pen;
-    wxMenu resistorMenu{};
+    wxMenu twoWayMenu{};
     wxMenu wireMenu{};
-    wxMenu voltOrCurrentSourceMenu{};
+    wxMenu fourWayMenu{};
     wxBitmap resistorBitmaps[2];
     wxBitmap voltSourceBitmaps[8];
     wxBitmap ampSourceBitmaps[8];
+    wxBitmap capacitorBitmaps[2];
     int dotSize;
 };

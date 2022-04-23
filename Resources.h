@@ -9,4 +9,5 @@ namespace resources {
     wxIconBundle getResistorIconBundle();
     wxBitmap getVoltSourceBitmap(int size, int shape);
     wxBitmap getAmpSourceBitmap(int size, int shape);
+    wxBitmap getCapacitorBitmap(int size, bool rotated);
 }

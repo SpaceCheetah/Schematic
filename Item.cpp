@@ -102,6 +102,8 @@ std::wstring Item::getValueStr() const {
             return valueToStr(value, 'V');
         case ItemType::amp_source:
             return valueToStr(value, 'A');
+        case ItemType::capacitor:
+            return valueToStr(value, 'F');
         default:
             return L"";
     }

@@ -199,3 +199,32 @@ wxBitmap resources::getAmpSourceBitmap(int size, int shape) {
     cache[key] = bitmap;
     return bitmap;
 }
+
+wxBitmap resources::getCapacitorBitmap(int size, bool rotated) {
+    static std::unordered_map<std::pair<int,bool>,wxBitmap,HashPairIntBool> cache{};
+    std::pair<int,bool> key{size, rotated};
+    auto iter = cache.find(key);
+    if(iter != cache.end()) {
+        return iter->second;
+    }
+    wxBitmap bitmap{initBitmap(size)};
+    wxMemoryDC dc{bitmap};
+    wxGraphicsContext* context = wxGraphicsContext::Create(dc);
+    wxPen pen = wxPen{wxPenInfo(*wxBLACK, std::ceil(size * 22.0 / 1024))};
+    context->SetPen(pen);
+    if(rotated) {
+        context->StrokeLine(0.5 * size, 0, 0.5 * size, 0.42 * size);
+        context->StrokeLine(0.5 * size, 0.58 * size, 0.5 * size, size);
+        context->StrokeLine(0.3 * size, 0.42 * size, 0.7 * size, 0.42 * size);
+        context->StrokeLine(0.3 * size, 0.58 * size, 0.7 * size, 0.58 * size);
+    } else {
+        context->StrokeLine(0, 0.5 * size, 0.42 * size, 0.5 * size);
+        context->StrokeLine(0.58 * size, 0.5 * size, size, 0.5 * size);
+        context->StrokeLine(0.42 * size, 0.3 * size, 0.42 * size, 0.7 * size);
+        context->StrokeLine(0.58 * size, 0.3 * size, 0.58 * size, 0.7 * size);
+    }
+    delete context;
+    dc.SelectObject(wxNullBitmap);
+    cache[key] = bitmap;
+    return bitmap;
+}
