@@ -29,12 +29,6 @@ bool AppMain::OnInit() {
 namespace {
 #ifdef _WIN32
 #include <ShlObj_core.h>
-    struct KeyWrapper {
-        HKEY key;
-        ~KeyWrapper() {
-            RegCloseKey(key);
-        }
-    };
     void initWindowsStuff() {
         //Currently, just registers the .schematic file type and points it to the current executable location. Yes, that requires an absurd amount of code.
         wchar_t buffer[1024];
@@ -49,36 +43,37 @@ namespace {
             std::filesystem::path icoPath{path.parent_path() / "res/resistor-multires.ico"};
             std::wstring icoPathStr = icoPath.generic_wstring();
             std::replace(icoPathStr.begin(), icoPathStr.end(), L'/', L'\\');
-            KeyWrapper extensionKey{};
-            if(RegCreateKeyExW(HKEY_CURRENT_USER, L"Software\\Classes\\.schematic", 0, nullptr, REG_OPTION_NON_VOLATILE, KEY_ALL_ACCESS, nullptr, &extensionKey.key, nullptr) == 0) {
-                RegSetValueExW(extensionKey.key, nullptr, 0, REG_SZ, reinterpret_cast<const BYTE *>(L"Schematic.App"), 28);
-            }
-            KeyWrapper progIDKey{};
-            if(RegCreateKeyExW(HKEY_CURRENT_USER, L"Software\\Classes\\Schematic.App", 0, nullptr, REG_OPTION_NON_VOLATILE, KEY_ALL_ACCESS, nullptr, &progIDKey.key, nullptr) == 0) {
-                RegSetValueExW(progIDKey.key, nullptr, 0, REG_SZ, reinterpret_cast<const BYTE *>(L"Schematic"), 20);
-                KeyWrapper commandKey{};
-                if(RegCreateKeyExW(progIDKey.key, L"shell\\open\\command", 0, nullptr, REG_OPTION_NON_VOLATILE, KEY_ALL_ACCESS, nullptr, &commandKey.key, nullptr) == 0) {
-                    RegSetValueExW(commandKey.key, nullptr, 0, REG_SZ, reinterpret_cast<const BYTE *>(pathWithArg.c_str()), pathWithArg.size() * 2 + 2);
-                }
-                KeyWrapper defaultIconKey{};
-                if(RegCreateKeyExW(progIDKey.key, L"DefaultIcon", 0, nullptr, REG_OPTION_NON_VOLATILE, KEY_ALL_ACCESS, nullptr, &defaultIconKey.key, nullptr) == 0) {
-                    RegSetValueExW(defaultIconKey.key, nullptr, 0, REG_SZ, reinterpret_cast<const BYTE *>(icoPathStr.c_str()), icoPathStr.size() * 2 + 2);
-                }
-            }
-            KeyWrapper pathKey{};
+            RegSetKeyValueW(HKEY_CURRENT_USER, L"Software\\Classes\\Schematic.app", nullptr, REG_SZ, reinterpret_cast<const BYTE *>(L"Schematic"), 20);
+            RegSetKeyValueW(HKEY_CURRENT_USER, L"Software\\Classes\\Schematic.app\\shell\\open\\command", nullptr, REG_SZ, reinterpret_cast<const BYTE *>(pathWithArg.c_str()), pathWithArg.size() * 2 + 2);
+            RegSetKeyValueW(HKEY_CURRENT_USER, L"Software\\Classes\\Schematic.app\\DefaultIcon", nullptr, REG_SZ,  reinterpret_cast<const BYTE *>(icoPathStr.c_str()), icoPathStr.size() * 2 + 2);
             std::wstring subkey = std::wstring{L"Software\\Microsoft\\Windows\\CurrentVersion\\App Paths\\"} + name.generic_wstring();
-            if(RegCreateKeyExW(HKEY_CURRENT_USER, subkey.c_str(), 0, nullptr, REG_OPTION_NON_VOLATILE, KEY_ALL_ACCESS, nullptr, &pathKey.key, nullptr) == 0) {
-                RegSetValueExW(pathKey.key, nullptr, 0, REG_SZ, reinterpret_cast<const BYTE *>(pathStr.c_str()), pathStr.size() * 2 + 2);
-            }
+            RegSetKeyValueW(HKEY_CURRENT_USER, subkey.c_str(), nullptr, REG_SZ, reinterpret_cast<const BYTE *>(pathStr.c_str()), pathStr.size() * 2 + 2);
             subkey = std::wstring{L"Software\\Classes\\Applications\\"} + name.generic_wstring() + L"\\shell\\open\\command";
-            KeyWrapper commandKey{};
-            if(RegCreateKeyExW(HKEY_CURRENT_USER, subkey.c_str(), 0, nullptr, REG_OPTION_NON_VOLATILE, KEY_ALL_ACCESS, nullptr, &commandKey.key, nullptr) == 0) {
-                RegSetValueExW(commandKey.key, nullptr, 0, REG_SZ, reinterpret_cast<const BYTE *>(pathWithArg.c_str()), pathWithArg.size() * 2 + 2);
+            RegSetKeyValueW(HKEY_CURRENT_USER, subkey.c_str(), nullptr, REG_SZ, reinterpret_cast<const BYTE *>(pathWithArg.c_str()), pathWithArg.size() * 2 + 2);
+            subkey = std::wstring{L"Software\\Classes\\Applications\\"} + name.generic_wstring() + L"\\SupportedTypes";
+            RegSetKeyValueW(HKEY_CURRENT_USER, subkey.c_str(), L".schematic", REG_SZ, L"", 2);
+            HKEY key{};
+            if(RegCreateKeyExW(HKEY_CURRENT_USER, L"Software\\Classes\\.schematic", 0, nullptr, REG_OPTION_NON_VOLATILE, KEY_ALL_ACCESS, nullptr, &key, nullptr) == 0) {
+                DWORD bufferSize = 2048;
+                LSTATUS status = RegQueryValueExW(key, nullptr, nullptr, nullptr, reinterpret_cast<BYTE *>(buffer), &bufferSize);
+                if(bufferSize == 0 || status != 0) { //No default value set,
+                    RegSetValueExW(key, nullptr, 0, REG_SZ, reinterpret_cast<const BYTE *>(L"Schematic.App"), 28);
+                    SHChangeNotify(SHCNE_ASSOCCHANGED, SHCNF_DWORD, nullptr, nullptr);
+                } else {
+                    std::wstring keyValue{buffer, bufferSize / 2 - 1};
+                    if(keyValue != L"Schematic.App") { //Another app added itself
+                        HKEY openWithKey;
+                        if(RegCreateKeyExW(HKEY_CURRENT_USER, L"Software\\Classes\\.schematic\\OpenWithProgids", 0, nullptr, REG_OPTION_NON_VOLATILE, KEY_ALL_ACCESS, nullptr, &openWithKey, nullptr) == 0) {
+                            if(RegQueryValueExW(openWithKey, L"Schematic.App", nullptr, nullptr, nullptr, nullptr) == ERROR_FILE_NOT_FOUND) {
+                                RegSetValueExW(openWithKey, L"Schematic.App", 0, REG_SZ, reinterpret_cast<const BYTE *>(L""), 2);
+                                SHChangeNotify(SHCNE_ASSOCCHANGED, SHCNF_DWORD, nullptr, nullptr);
+                            }
+                            RegCloseKey(openWithKey);
+                        }
+                    }
+                }
+                RegCloseKey(key);
             }
-            subkey = std::wstring{L"Software\\Classes\\Applications\\"} + name.generic_wstring() + L"\\SupportedTypes\\.schematic";
-            KeyWrapper supportedTypeKey{};
-            RegCreateKeyExW(HKEY_CURRENT_USER,subkey.c_str(), 0, nullptr, REG_OPTION_NON_VOLATILE, KEY_ALL_ACCESS, nullptr, &supportedTypeKey.key, nullptr);
-            SHChangeNotify(SHCNE_ASSOCCHANGED, SHCNF_DWORD, nullptr, nullptr);
         }
     }
 #else
