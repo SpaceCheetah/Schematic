@@ -15,6 +15,7 @@ namespace {
 }
 
 void WindowGrid::OnDraw(wxDC &dc) {
+    //This function is way too long; I don't like making helper functions that are only used once, though.
     dc.SetBrush(*wxBLACK_BRUSH);
     dc.SetPen(pen);
     dc.SetFont(font);
@@ -66,25 +67,71 @@ void WindowGrid::OnDraw(wxDC &dc) {
                 }
                 case Item::ItemType::wire: {
                     int directions = 0;
+                    bool up, down, left, right;
+                    up = down = left = right = false;
                     wxPoint middle = wxPoint{cellSize / 2 + cellSize * c, cellSize / 2 + cellSize * r};
                     if (item.getShape() & Item::UP) {
                         dc.DrawLine(wxPoint{cellSize / 2 + cellSize * c, cellSize * r}, middle);
                         directions++;
+                        up = true;
                     }
                     if (item.getShape() & Item::DOWN) {
                         dc.DrawLine(wxPoint{cellSize / 2 + cellSize * c, cellSize * (r + 1)}, middle);
                         directions++;
+                        down = true;
                     }
                     if (item.getShape() & Item::LEFT) {
                         dc.DrawLine(wxPoint{cellSize * c, cellSize / 2 + cellSize * r}, middle);
                         directions++;
+                        left = true;
                     }
                     if (item.getShape() & Item::RIGHT) {
                         dc.DrawLine(wxPoint{cellSize * (c + 1), cellSize / 2 + cellSize * r}, middle);
                         directions++;
+                        right = true;
                     }
                     if (directions > 2) {
                         dc.DrawCircle(middle, std::max(cellSize * 3 / 128, 1));
+                    }
+                    std::wstring extraData = item.getExtraData();
+                    if(!extraData.empty()) {
+                        wxSize textSize = dc.GetTextExtent(extraData);
+                        if(directions == 4 || (up && right && directions == 2) || (right && directions == 1) || (up && directions == 1 && !rotatedText)) { //draw in top right corner
+                            dc.DrawLabel(item.getValueStr(6), wxRect{cellSize * c + cellSize * 13/24, cellSize * r, 0, cellSize / 2}, wxALIGN_BOTTOM | wxALIGN_LEFT);
+                        } else if(left && right) { //draw horizontally centered
+                            if(up) {
+                                dc.DrawLabel(extraData, wxRect{cellSize * c, cellSize * r + cellSize / 2, cellSize, 0}, wxALIGN_CENTER_HORIZONTAL | wxALIGN_TOP);
+                            } else {
+                                dc.DrawLabel(extraData, wxRect{cellSize * c, cellSize * r, cellSize, cellSize / 2}, wxALIGN_CENTER_HORIZONTAL | wxALIGN_BOTTOM);
+                            }
+                        } else if(up && down) { //draw vertically centered
+                            if(rotatedText) {
+                                if(right) {
+                                    dc.DrawRotatedText(extraData, cellSize * c + cellSize / 2, cellSize * r + cellSize / 2 - textSize.GetWidth() / 2, 270);
+                                } else {
+                                    dc.DrawRotatedText(extraData, cellSize * c + cellSize * 13 / 24 + textSize.GetHeight(), cellSize * r + cellSize / 2 - textSize.GetWidth() / 2, 270);
+                                }
+                            } else {
+                                std::wstring value = item.getValueStr(6);
+                                if(right) {
+                                    dc.DrawLabel(value, wxRect{cellSize * c, cellSize * r, cellSize * 11 / 24, cellSize}, wxALIGN_CENTER_VERTICAL | wxALIGN_RIGHT);
+                                } else {
+                                    dc.DrawLabel(value, wxRect{cellSize * c + cellSize * 13 / 24, cellSize * r, 0, cellSize}, wxALIGN_CENTER_VERTICAL | wxALIGN_LEFT);
+                                }
+                            }
+                        } else if(right || (down && directions == 1 && !rotatedText)) { //draw in bottom right corner
+                            dc.DrawLabel(item.getValueStr(6), wxRect{cellSize * c + cellSize * 13/24, cellSize * r + cellSize * 13 / 24, 0, 0}, wxALIGN_TOP | wxALIGN_LEFT);
+                        } else if(left && down) { //Draw in bottom left corner
+                            dc.DrawLabel(item.getValueStr(6), wxRect{cellSize * c, cellSize * r + cellSize * 13 / 24, cellSize * 11 / 24, 0}, wxALIGN_RIGHT | wxALIGN_TOP);
+                        } else if(left) { //Draw in top left corner
+                            dc.DrawLabel(item.getValueStr(6), wxRect{cellSize * c, cellSize * r, cellSize * 11 / 24, cellSize * 11 / 24}, wxALIGN_RIGHT | wxALIGN_BOTTOM);
+                        } else if(up) { //Draw in top right corner, rotated
+                            dc.DrawRotatedText(extraData, cellSize * c + cellSize * 13 / 24 + textSize.GetHeight(), cellSize * r + cellSize / 4 - textSize.GetWidth() / 2, 270);
+                        } else if(down) { //Draw in bottom right corner, rotated
+                            dc.DrawRotatedText(extraData, cellSize * c + cellSize * 13 / 24 + textSize.GetHeight(), cellSize * r + cellSize * 3 / 4 - textSize.GetWidth() / 2, 270);
+                        } else { //Draw in center
+                            dc.DrawLabel(extraData, wxRect{cellSize * c, cellSize * r, cellSize, cellSize}, wxALIGN_CENTER);
+                        }
                     }
                     break;
                 }
@@ -122,6 +169,7 @@ WindowGrid::WindowGrid(wxWindow *parent, wxWindowID id, const wxPoint &pos, cons
 
     twoWayMenu.Append(id::set_value, "Set value");
     twoWayMenu.Append(id::rotate, "Rotate");
+    wireMenu.Append(id::set_value, "Set value");
     wireMenu.Append(id::toggle_up, "Toggle up");
     wireMenu.Append(id::toggle_left, "Toggle left");
     wireMenu.Append(id::toggle_right, "Toggle right");
@@ -401,19 +449,24 @@ void WindowGrid::onRightDown(wxMouseEvent &event) {
             Item item;
             switch (response) {
                 case id::toggle_up: {
-                    item = {Item::ItemType::wire, currentItem.getShape() ^ Item::UP, 0};
+                    item = {Item::ItemType::wire, currentItem.getShape() ^ Item::UP, 0, currentItem.getExtraData()};
                     break;
                 }
                 case id::toggle_down: {
-                    item = {Item::ItemType::wire, currentItem.getShape() ^ Item::DOWN, 0};
+                    item = {Item::ItemType::wire, currentItem.getShape() ^ Item::DOWN, 0, currentItem.getExtraData()};
                     break;
                 }
                 case id::toggle_left: {
-                    item = {Item::ItemType::wire, currentItem.getShape() ^ Item::LEFT, 0};
+                    item = {Item::ItemType::wire, currentItem.getShape() ^ Item::LEFT, 0, currentItem.getExtraData()};
                     break;
                 }
                 case id::toggle_right: {
-                    item = {Item::ItemType::wire, currentItem.getShape() ^ Item::RIGHT, 0};
+                    item = {Item::ItemType::wire, currentItem.getShape() ^ Item::RIGHT, 0, currentItem.getExtraData()};
+                    break;
+                }
+                case id::set_value: {
+                    item = valueDialog(currentItem, false);
+                    if(item.getType() == Item::ItemType::none) changed = false;
                     break;
                 }
                 default: {
