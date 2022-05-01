@@ -5,7 +5,7 @@
 
 class FrameMain : public wxFrame {
 public:
-    FrameMain(const std::wstring& file = {});
+    explicit FrameMain(const std::wstring& file = {});
 private:
     void onSize(wxSizeEvent& evt);
     void onChar(wxKeyEvent& evt);
@@ -13,7 +13,6 @@ private:
     void onLoad();
     void onNew();
     void onClose(wxCloseEvent& evt);
-    void setGridDotSize(wxCommandEvent& evt);
     bool confirmClose(const wxString& message);
     wxToolBar* toolbar;
     wxMenuBar* menuBar;

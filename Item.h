@@ -23,7 +23,7 @@ public:
     ItemType getType() const;
     int getShape() const;
     double getValue() const;
-    std::wstring getValueStr() const;
+    std::wstring getValueStr(int split = 0) const;
     std::wstring getExtraData() const;
 private:
     ItemType type;

@@ -21,7 +21,8 @@ FrameMain::FrameMain(const std::wstring& fileIn) : wxFrame(nullptr, wxID_ANY, "S
     Bind(wxEVT_MENU, [this](wxCommandEvent& evt) {onSave(true);}, id::file_save_as);
     Bind(wxEVT_MENU, [this](wxCommandEvent& evt) {onLoad();}, id::file_load);
     Bind(wxEVT_MENU, [this](wxCommandEvent& evt) {onNew();}, id::file_new);
-    Bind(wxEVT_MENU, &FrameMain::setGridDotSize, this, id::view_dot_size);
+    Bind(wxEVT_MENU, [this](wxCommandEvent& evt) {(new DotSizeDialog{this, *windowGrid})->Show();}, id::view_dot_size);
+    Bind(wxEVT_MENU, [this](wxCommandEvent& evt) {windowGrid->toggleRotatedText();}, id::view_rotated_text);
     Bind(wxEVT_MENU, [this](wxCommandEvent& evt) {windowGrid->undo();}, wxID_UNDO);
     Bind(wxEVT_MENU, [this](wxCommandEvent& evt) {windowGrid->redo();}, wxID_REDO);
     Bind(wxEVT_CLOSE_WINDOW, &FrameMain::onClose, this);
@@ -33,8 +34,8 @@ FrameMain::FrameMain(const std::wstring& fileIn) : wxFrame(nullptr, wxID_ANY, "S
     toolbar = wxFrame::CreateToolBar(wxTB_VERTICAL | wxTB_FLAT | wxTB_NODIVIDER, wxID_ANY);
     toolbar->AddRadioTool(id::tool_wire, "Wire", resources::getWireBitmap(dip32), wxNullBitmap, "Wire");
     toolbar->AddRadioTool(id::tool_resistor, "Resistor", resources::getResistorBitmap(dip32, false), wxNullBitmap, "Resistor");
-    toolbar->AddRadioTool(id::tool_volt_source, "Voltage Source", resources::getVoltSourceBitmap(dip32, Item::RIGHT), wxNullBitmap, "Voltage Source");
-    toolbar->AddRadioTool(id::tool_amp_source, "Current Source", resources::getAmpSourceBitmap(dip32, Item::RIGHT), wxNullBitmap, "Current Source");
+    toolbar->AddRadioTool(id::tool_volt_source, "Voltage Source", resources::getVoltSourceBitmap(dip32, Item::RIGHT, true), wxNullBitmap, "Voltage Source");
+    toolbar->AddRadioTool(id::tool_amp_source, "Current Source", resources::getAmpSourceBitmap(dip32, Item::RIGHT, true), wxNullBitmap, "Current Source");
     toolbar->AddRadioTool(id::tool_capacitor, "Capacitor", resources::getCapacitorBitmap(dip32, false), wxNullBitmap, "Capacitor");
     toolbar->AddRadioTool(id::tool_bin, "Delete", resources::getBinBitmap(dip32), wxNullBitmap, "Delete");
     toolbar->Realize();
@@ -47,6 +48,7 @@ FrameMain::FrameMain(const std::wstring& fileIn) : wxFrame(nullptr, wxID_ANY, "S
     fileMenu->Append(id::file_new, "New (CTRL+N)");
     auto* viewMenu = new wxMenu();
     viewMenu->Append(id::view_dot_size, "Set grid dot size");
+    viewMenu->Append(id::view_rotated_text, "Toggle rotated text");
     auto* editMenu = new wxMenu();
     editMenu->Append(wxID_UNDO, "Undo (CTRL+Z)");
     editMenu->Append(wxID_REDO, "Redo (CTRL+Y)");
@@ -187,9 +189,4 @@ void FrameMain::onClose(wxCloseEvent& evt) {
         return;
     }
     Destroy();
-}
-
-void FrameMain::setGridDotSize(wxCommandEvent& evt) {
-    auto* dialog = new DotSizeDialog{this, *windowGrid};
-    dialog->Show();
 }

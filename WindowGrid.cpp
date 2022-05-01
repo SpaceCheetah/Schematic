@@ -33,26 +33,34 @@ void WindowGrid::OnDraw(wxDC &dc) {
                     break;
                 }
                 case Item::ItemType::resistor: {
-                    std::wstring value = item.getValueStr();
                     if (item.getShape() == Item::HORIZONTAL) {
                         dc.DrawBitmap(resistorBitmaps[0], cellSize * c, cellSize * r);
-                        dc.DrawLabel(value, wxRect{cellSize * c, cellSize * r + cellSize * 4 / 17, cellSize, cellSize}, wxALIGN_CENTER_HORIZONTAL | wxALIGN_TOP);
+                        dc.DrawLabel(item.getValueStr(), wxRect{cellSize * c, cellSize * r + cellSize * 4 / 17, cellSize, cellSize}, wxALIGN_CENTER_HORIZONTAL | wxALIGN_TOP);
                     } else {
                         dc.DrawBitmap(resistorBitmaps[1], cellSize * c, cellSize * r);
-                        wxSize textSize = dc.GetTextExtent(value);
-                        dc.DrawRotatedText(value, cellSize * c + cellSize * 40 / 51, cellSize * r + cellSize / 2 - textSize.GetWidth() / 2, 270);
+                        if(rotatedText) {
+                            std::wstring value = item.getValueStr();
+                            wxSize textSize = dc.GetTextExtent(value);
+                            dc.DrawRotatedText(value, cellSize * c + cellSize * 40 / 51, cellSize * r + cellSize / 2 - textSize.GetWidth() / 2, 270);
+                        } else {
+                            dc.DrawLabel(item.getValueStr(5), wxRect{cellSize * c + cellSize * 11 / 17, cellSize * r, 0, cellSize}, wxALIGN_CENTER_VERTICAL | wxALIGN_LEFT);
+                        }
                     }
                     break;
                 }
                 case Item::ItemType::capacitor: {
-                    std::wstring value = item.getValueStr();
                     if (item.getShape() == Item::HORIZONTAL) {
                         dc.DrawBitmap(capacitorBitmaps[0], cellSize * c, cellSize * r);
-                        dc.DrawLabel(value, wxRect{cellSize * c, cellSize * r + cellSize * 2 / 17, cellSize, cellSize}, wxALIGN_CENTER_HORIZONTAL | wxALIGN_TOP);
+                        dc.DrawLabel(item.getValueStr(), wxRect{cellSize * c, cellSize * r + cellSize * 2 / 17, cellSize, cellSize}, wxALIGN_CENTER_HORIZONTAL | wxALIGN_TOP);
                     } else {
                         dc.DrawBitmap(capacitorBitmaps[1], cellSize * c, cellSize * r);
-                        wxSize textSize = dc.GetTextExtent(value);
-                        dc.DrawRotatedText(value, cellSize * c + cellSize * 31 / 34, cellSize * r + cellSize / 2 - textSize.GetWidth() / 2, 270);
+                        if(rotatedText) {
+                            std::wstring value = item.getValueStr();
+                            wxSize textSize = dc.GetTextExtent(value);
+                            dc.DrawRotatedText(value, cellSize * c + cellSize * 31 / 34, cellSize * r + cellSize / 2 - textSize.GetWidth() / 2, 270);
+                        } else {
+                            dc.DrawLabel(item.getValueStr(6), wxRect{cellSize * c + cellSize * 4 / 7, cellSize * r, 0, cellSize / 2}, wxALIGN_CENTER_VERTICAL | wxALIGN_LEFT);
+                        }
                     }
                     break;
                 }
@@ -82,7 +90,6 @@ void WindowGrid::OnDraw(wxDC &dc) {
                 }
                 case Item::ItemType::amp_source: case Item::ItemType::volt_source: {
                     wxBitmap* bitmaps = item.getType() == Item::ItemType::amp_source ? ampSourceBitmaps : voltSourceBitmaps;
-                    std::wstring value = item.getValueStr();
                     int bitmapIndex;
                     if(item.getShape() & Item::UP) bitmapIndex = 0;
                     else if(item.getShape() & Item::DOWN) bitmapIndex = 1;
@@ -90,20 +97,14 @@ void WindowGrid::OnDraw(wxDC &dc) {
                     else bitmapIndex = 3;
                     if(item.getShape() & Item::DEPENDENT) bitmapIndex += 4;
                     dc.DrawBitmap(bitmaps[bitmapIndex], cellSize * c, cellSize * r);
-                    if(item.getShape() & Item::DEPENDENT) {
-                        if ((item.getShape() & Item::LEFT) || (item.getShape() & Item::RIGHT)) {
-                            dc.DrawLabel(value, wxRect{cellSize * c, cellSize * r, cellSize, cellSize}, wxALIGN_CENTER_HORIZONTAL | wxALIGN_TOP);
-                        } else {
-                            wxSize textSize = dc.GetTextExtent(value);
-                            dc.DrawRotatedText(value, cellSize * (c + 1) + textSize.GetWidth() / 10, cellSize * r + cellSize / 2 - textSize.GetWidth() / 2, 270);
-                        }
+                    if((item.getShape() & Item::LEFT) || (item.getShape() & Item::RIGHT)) {
+                        dc.DrawLabel(item.getValueStr(), wxRect{cellSize * c, cellSize * r + cellSize * 5 / 34, cellSize, cellSize}, wxALIGN_CENTER_HORIZONTAL | wxALIGN_TOP);
+                    } else if(rotatedText) {
+                        std::wstring value = item.getValueStr();
+                        wxSize textSize = dc.GetTextExtent(value);
+                        dc.DrawRotatedText(value, cellSize * c + cellSize * 15 / 17, cellSize * r + cellSize / 2 - textSize.GetWidth() / 2, 270);
                     } else {
-                        if ((item.getShape() & Item::LEFT) || (item.getShape() & Item::RIGHT)) {
-                            dc.DrawLabel(value, wxRect{cellSize * c, cellSize * r + cellSize * 7 / 34, cellSize, cellSize}, wxALIGN_CENTER_HORIZONTAL | wxALIGN_TOP);
-                        } else {
-                            wxSize textSize = dc.GetTextExtent(value);
-                            dc.DrawRotatedText(value, cellSize * c + cellSize * 83 / 102, cellSize * r + cellSize / 2 - textSize.GetWidth() / 2, 270);
-                        }
+                        dc.DrawLabel(item.getValueStr(4), wxRect{cellSize * c + cellSize * 25 / 34, cellSize * r, cellSize, cellSize}, wxALIGN_CENTER_VERTICAL | wxALIGN_LEFT);
                     }
                     break;
                 }
@@ -113,7 +114,7 @@ void WindowGrid::OnDraw(wxDC &dc) {
 }
 
 WindowGrid::WindowGrid(wxWindow *parent, wxWindowID id, const wxPoint &pos, const wxSize &size, const LoadStruct& load)
-        : wxScrolledCanvas(parent, id, pos, size), grid{load.grid}, zoomLevels{load.zoom}, dotSize{load.dotSize} {
+        : wxScrolledCanvas(parent, id, pos, size), grid{load.grid}, zoomLevels{load.zoom}, dotSize{load.dotSize}, rotatedText{load.rotatedText} {
     Bind(wxEVT_MOUSEWHEEL, &WindowGrid::onScroll, this);
     Bind(wxEVT_LEFT_DOWN, &WindowGrid::onLeftDown, this);
     Bind(wxEVT_MOTION, &WindowGrid::onMotion, this);
@@ -135,29 +136,31 @@ WindowGrid::WindowGrid(wxWindow *parent, wxWindowID id, const wxPoint &pos, cons
 }
 
 void WindowGrid::refresh(int xPos, int yPos) {
-    wxScrolledCanvas::SetScrollbars(16, 16, static_cast<int>(grid.getWidth()) * (8 + zoomLevels), static_cast<int>(grid.getHeight()) * (8 + zoomLevels), xPos, yPos);
+    if(xPos != -1 && yPos != -1) {
+        wxScrolledCanvas::SetScrollbars(16, 16, static_cast<int>(grid.getWidth()) * (8 + zoomLevels), static_cast<int>(grid.getHeight()) * (8 + zoomLevels),xPos, yPos);
+    }
     font = wxSystemSettings::GetFont(wxSYS_DEFAULT_GUI_FONT);
     font.SetPixelSize(wxSize{0, 16 + 2 * zoomLevels});
     pen = wxPen{wxPenInfo(*wxBLACK, std::ceil(22.0 / 1024 * (128 + 16 * zoomLevels)))};
     int size = 128 + zoomLevels * 16;
     resistorBitmaps[0] = resources::getResistorBitmap(size, false);
     resistorBitmaps[1] = resources::getResistorBitmap(size, true);
-    voltSourceBitmaps[0] = resources::getVoltSourceBitmap(size, Item::UP);
-    voltSourceBitmaps[1] = resources::getVoltSourceBitmap(size, Item::DOWN);
-    voltSourceBitmaps[2] = resources::getVoltSourceBitmap(size, Item::RIGHT);
-    voltSourceBitmaps[3] = resources::getVoltSourceBitmap(size, Item::LEFT);
-    voltSourceBitmaps[4] = resources::getVoltSourceBitmap(size, Item::UP | Item::DEPENDENT);
-    voltSourceBitmaps[5] = resources::getVoltSourceBitmap(size, Item::DOWN | Item::DEPENDENT);
-    voltSourceBitmaps[6] = resources::getVoltSourceBitmap(size, Item::RIGHT | Item::DEPENDENT);
-    voltSourceBitmaps[7] = resources::getVoltSourceBitmap(size, Item::LEFT | Item::DEPENDENT);
-    ampSourceBitmaps[0] = resources::getAmpSourceBitmap(size, Item::UP);
-    ampSourceBitmaps[1] = resources::getAmpSourceBitmap(size, Item::DOWN);
-    ampSourceBitmaps[2] = resources::getAmpSourceBitmap(size, Item::RIGHT);
-    ampSourceBitmaps[3] = resources::getAmpSourceBitmap(size, Item::LEFT);
-    ampSourceBitmaps[4] = resources::getAmpSourceBitmap(size, Item::UP | Item::DEPENDENT);
-    ampSourceBitmaps[5] = resources::getAmpSourceBitmap(size, Item::DOWN | Item::DEPENDENT);
-    ampSourceBitmaps[6] = resources::getAmpSourceBitmap(size, Item::RIGHT | Item::DEPENDENT);
-    ampSourceBitmaps[7] = resources::getAmpSourceBitmap(size, Item::LEFT | Item::DEPENDENT);
+    voltSourceBitmaps[0] = resources::getVoltSourceBitmap(size, Item::UP, false);
+    voltSourceBitmaps[1] = resources::getVoltSourceBitmap(size, Item::DOWN, false);
+    voltSourceBitmaps[2] = resources::getVoltSourceBitmap(size, Item::RIGHT, false);
+    voltSourceBitmaps[3] = resources::getVoltSourceBitmap(size, Item::LEFT, false);
+    voltSourceBitmaps[4] = resources::getVoltSourceBitmap(size, Item::UP | Item::DEPENDENT, false);
+    voltSourceBitmaps[5] = resources::getVoltSourceBitmap(size, Item::DOWN | Item::DEPENDENT, false);
+    voltSourceBitmaps[6] = resources::getVoltSourceBitmap(size, Item::RIGHT | Item::DEPENDENT, false);
+    voltSourceBitmaps[7] = resources::getVoltSourceBitmap(size, Item::LEFT | Item::DEPENDENT, false);
+    ampSourceBitmaps[0] = resources::getAmpSourceBitmap(size, Item::UP, false);
+    ampSourceBitmaps[1] = resources::getAmpSourceBitmap(size, Item::DOWN, false);
+    ampSourceBitmaps[2] = resources::getAmpSourceBitmap(size, Item::RIGHT, false);
+    ampSourceBitmaps[3] = resources::getAmpSourceBitmap(size, Item::LEFT, false);
+    ampSourceBitmaps[4] = resources::getAmpSourceBitmap(size, Item::UP | Item::DEPENDENT, false);
+    ampSourceBitmaps[5] = resources::getAmpSourceBitmap(size, Item::DOWN | Item::DEPENDENT, false);
+    ampSourceBitmaps[6] = resources::getAmpSourceBitmap(size, Item::RIGHT | Item::DEPENDENT, false);
+    ampSourceBitmaps[7] = resources::getAmpSourceBitmap(size, Item::LEFT | Item::DEPENDENT, false);
     capacitorBitmaps[0] = resources::getCapacitorBitmap(size, false);
     capacitorBitmaps[1] = resources::getCapacitorBitmap(size, true);
     Refresh();
@@ -167,6 +170,7 @@ void WindowGrid::reload(const WindowGrid::LoadStruct& load) {
     grid = load.grid;
     zoomLevels = load.zoom;
     dotSize = load.dotSize;
+    rotatedText = load.rotatedText;
     dirty = false;
     refresh(load.xScroll, load.yScroll);
 }
@@ -484,6 +488,9 @@ void WindowGrid::save(std::ofstream& ofstream) {
     GetViewStart(&xScroll, &yScroll);
     uint32_t toWrite[] = {static_cast<uint32_t>(zoomLevels), static_cast<uint32_t>(xScroll), static_cast<uint32_t>(yScroll), static_cast<uint32_t>(dotSize), grid.getWidth(), grid.getHeight()};
     ofstream.write(reinterpret_cast<const char*>(toWrite), sizeof(toWrite));
+    uint8_t boolOptions = 0; //doing it this way to make it easier to add more bool options in the future without breaking the file format again
+    if(rotatedText) boolOptions |= 1;
+    ofstream.write(reinterpret_cast<const char *>(&boolOptions), sizeof(uint8_t));
     size_t numElements = grid.gridMap.size();
     ofstream.write(reinterpret_cast<const char*>(&numElements), sizeof(size_t));
     for(auto pair : grid.gridMap) {
@@ -501,6 +508,8 @@ WindowGrid::LoadStruct WindowGrid::load(std::ifstream& ifstream) {
     }
     uint32_t readArr[6];
     ifstream.read(reinterpret_cast<char *>(readArr), sizeof(readArr));
+    uint8_t boolOptions;
+    ifstream.read(reinterpret_cast<char *>(&boolOptions), sizeof(uint8_t));
     size_t numElements;
     ifstream.read(reinterpret_cast<char *>(&numElements), sizeof(size_t));
     std::unordered_map<uint64_t, Item> gridMap{numElements};
@@ -511,7 +520,7 @@ WindowGrid::LoadStruct WindowGrid::load(std::ifstream& ifstream) {
         gridMap.insert(pair);
     }
     Grid grid{readArr[4], readArr[5], gridMap};
-    return WindowGrid::LoadStruct{grid, static_cast<int>(readArr[0]), static_cast<int>(readArr[1]), static_cast<int>(readArr[2]), static_cast<int>(readArr[3])};
+    return WindowGrid::LoadStruct{grid, static_cast<int>(readArr[0]), static_cast<int>(readArr[1]), static_cast<int>(readArr[2]), static_cast<int>(readArr[3]), (boolOptions & 1) == 1};
 }
 
 int WindowGrid::getDotSize() const {
@@ -538,7 +547,13 @@ void WindowGrid::redo() {
     }
 }
 
-WindowGrid::LoadStruct::LoadStruct(Grid grid, int zoom, int xScroll, int yScroll, int dotSize) : grid{std::move(grid)}, zoom{zoom}, xScroll{xScroll}, yScroll{yScroll}, dotSize{dotSize} {}
+void WindowGrid::toggleRotatedText() {
+    rotatedText = !rotatedText;
+    dirty = true;
+    refresh();
+}
+
+WindowGrid::LoadStruct::LoadStruct(Grid grid, int zoom, int xScroll, int yScroll, int dotSize, bool rotatedText) : grid{std::move(grid)}, zoom{zoom}, xScroll{xScroll}, yScroll{yScroll}, dotSize{dotSize}, rotatedText{rotatedText} {}
 
 namespace {
     Item valueDialog(const Item& currentItem, bool numeric) {

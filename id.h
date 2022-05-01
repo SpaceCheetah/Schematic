@@ -23,6 +23,7 @@ namespace id {
         file_save_as,
         file_load,
         view_dot_size,
+        view_rotated_text,
         dependent,
         dot_size_slider
     };

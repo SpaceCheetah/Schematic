@@ -7,7 +7,8 @@ public:
     struct LoadStruct {
         Grid grid;
         int zoom, xScroll, yScroll, dotSize;
-        explicit LoadStruct(Grid  grid = Grid{}, int zoom = 0, int xScroll = 0, int yScroll = 0, int dotSize = 3);
+        bool rotatedText;
+        explicit LoadStruct(Grid  grid = Grid{}, int zoom = 0, int xScroll = 0, int yScroll = 0, int dotSize = 3, bool rotatedText = false);
     };
     explicit WindowGrid(wxWindow* parent = nullptr, wxWindowID id = wxID_ANY, const wxPoint& pos = wxDefaultPosition, const wxSize& size = wxDefaultSize, const LoadStruct& load = LoadStruct{});
     Item::ItemType selectedTool{Item::ItemType::wire};
@@ -18,6 +19,7 @@ public:
     static LoadStruct load(std::ifstream& ifstream);
     int getDotSize() const;
     void setDotSize(int size);
+    void toggleRotatedText();
     void undo();
     void redo();
 private:
@@ -26,7 +28,7 @@ private:
     void onMotion(wxMouseEvent& event);
     void onLeftDown(wxMouseEvent& event);
     void onRightDown(wxMouseEvent& event);
-    void refresh(int xPos, int yPos);
+    void refresh(int xPos = -1, int yPos = -1);
     void placePartial(wxPoint cell, const Item& item);
     Grid grid;
     wxFont font;
@@ -41,4 +43,5 @@ private:
     wxBitmap ampSourceBitmaps[8];
     wxBitmap capacitorBitmaps[2];
     int dotSize;
+    bool rotatedText;
 };

@@ -77,11 +77,15 @@ namespace {
         }
         return {0, 0};
     }
-    std::wstring valueToStr(double value, wchar_t unit) {
+    std::wstring valueToStr(double value, wchar_t unit, int split) {
         std::wstringstream stream{};
         stream << std::setprecision(4);
         std::pair<double, wchar_t> si = getSI(value);
         stream << si.first;
+        int valueLength = static_cast<int>(stream.tellp());
+        if(split && valueLength + 1 + (si.second == 0 ? 0 : 1) > split) {
+            stream << '\n';
+        }
         if (si.second != 0) {
             stream << si.second;
         }
@@ -90,20 +94,28 @@ namespace {
     }
 }
 
-std::wstring Item::getValueStr() const {
+std::wstring Item::getValueStr(int split) const {
     if(!extraData.empty()) {
+        if(split != 0 && extraData.size() > split) {
+            std::wstring splitData{};
+            for(int i = 0; i < extraData.size(); i ++) {
+                if(i % split == 0 && i != 0) splitData += '\n';
+                splitData += extraData[i];
+            }
+            return splitData;
+        }
         return extraData;
     }
     switch(type) {
         case ItemType::resistor: {
-            return valueToStr(value, L'\u03A9');
+            return valueToStr(value, L'\u03A9', split);
         }
         case ItemType::volt_source:
-            return valueToStr(value, 'V');
+            return valueToStr(value, 'V', split);
         case ItemType::amp_source:
-            return valueToStr(value, 'A');
+            return valueToStr(value, 'A', split);
         case ItemType::capacitor:
-            return valueToStr(value, 'F');
+            return valueToStr(value, 'F', split);
         default:
             return L"";
     }

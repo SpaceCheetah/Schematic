@@ -35,6 +35,9 @@ namespace {
             return (static_cast<size_t>(key.first) << (sizeof(int) * 8)) | key.second;
         }
     };
+    double rScale(double d, double scale) { //radial scale (scaling point from center)
+        return 0.5 + (d - 0.5) * scale;
+    }
 }
 
 wxBitmap resources::getBinBitmap(int size) { //doing it this way instead of image.Scale to get antialiasing
@@ -94,13 +97,16 @@ wxBitmap resources::getWireBitmap(int size) {
     return bitmap;
 }
 
-wxBitmap resources::getVoltSourceBitmap(int size, int shape) {
-    static std::unordered_map<std::pair<int,int>,wxBitmap,HashPairIntInt> cache{};
-    std::pair<int,int> key{size, shape};
-    auto iter = cache.find(key);
-    if(iter != cache.end()) {
-        return iter->second;
+wxBitmap resources::getVoltSourceBitmap(int size, int shape, bool toolbar) {
+    static std::unordered_map<std::pair<int, int>, wxBitmap, HashPairIntInt> cache{};
+    std::pair<int, int> key{size, shape};
+    if(!toolbar) {
+        auto iter = cache.find(key);
+        if (iter != cache.end()) {
+            return iter->second;
+        }
     }
+    double scale = toolbar ? 1 : 0.4 / 0.7;
     wxBitmap bitmap{initBitmap(size)};
     wxMemoryDC dc{bitmap};
     wxGraphicsContext* context = wxGraphicsContext::Create(dc);
@@ -108,95 +114,106 @@ wxBitmap resources::getVoltSourceBitmap(int size, int shape) {
     context->SetPen(pen);
     if(shape & Item::DEPENDENT) { //Draw border
         const wxPoint2DDouble points[] = {
-                {0.5 * size, 0.15 * size},
-                {0.85 * size, 0.5 * size},
-                {0.5 * size, 0.85 * size},
-                {0.15 * size, 0.5 * size},
-                {0.5 * size, 0.15 * size}};
+                {0.5 * size, rScale(0.15, scale) * size},
+                {rScale(0.85, scale) * size, 0.5 * size},
+                {0.5 * size, rScale(0.85, scale) * size},
+                {rScale(0.15, scale) * size, 0.5 * size},
+                {0.5 * size, rScale(0.15, scale) * size}};
         context->StrokeLines(5, points);
     }
     else {
-        context->DrawEllipse(0.15 * size, 0.15 * size, 0.7 * size, 0.7 * size);
+        context->DrawEllipse(rScale(0.15, scale) * size, rScale(0.15, scale) * size, 0.7 * scale * size, 0.7 * scale * size);
     }
     if((shape & Item::UP) || (shape & Item::DOWN)) { //Draw wire connections
-        context->StrokeLine(0.5 * size, 0, 0.5 * size, 0.15 * size);
-        context->StrokeLine(0.5 * size, 0.85 * size, 0.5 * size, size);
+        context->StrokeLine(0.5 * size, 0, 0.5 * size, rScale(0.15, scale) * size);
+        context->StrokeLine(0.5 * size, rScale(0.85, scale) * size, 0.5 * size, size);
     } else {
-        context->StrokeLine(0, 0.5 * size, 0.15 * size, 0.5 * size);
-        context->StrokeLine(0.85 * size, 0.5 * size, size, 0.5 * size);
+        context->StrokeLine(0, 0.5 * size, rScale(0.15, scale) * size, 0.5 * size);
+        context->StrokeLine(rScale(0.85, scale) * size, 0.5 * size, size, 0.5 * size);
     }
     if(shape & Item::UP) { //Draw + and -
-        context->StrokeLine(0.5 * size, 0.3 * size, 0.5 * size, 0.5 * size);
-        context->StrokeLine(0.4 * size, 0.4 * size, 0.6 * size, 0.4 * size);
-        context->StrokeLine(0.4 * size, 0.7 * size, 0.6 * size, 0.7 * size);
+        context->StrokeLine(0.5 * size, rScale(0.3, scale) * size, 0.5 * size, 0.5 * size);
+        context->StrokeLine(rScale(0.4, scale) * size, rScale(0.4, scale) * size, rScale(0.6, scale) * size, rScale(0.4, scale) * size);
+        context->StrokeLine(rScale(0.4, scale) * size, rScale(0.67, scale) * size, rScale(0.6, scale) * size, rScale(0.67, scale) * size);
     } else if(shape & Item::RIGHT) {
-        context->StrokeLine(0.7 * size, 0.5 * size, 0.5 * size, 0.5 * size);
-        context->StrokeLine(0.6 * size, 0.4 * size, 0.6 * size, 0.6 * size);
-        context->StrokeLine(0.3 * size, 0.4 * size, 0.3 * size, 0.6 * size);
+        context->StrokeLine(rScale(0.7, scale) * size, 0.5 * size, 0.5 * size, 0.5 * size);
+        context->StrokeLine(rScale(0.6, scale) * size, rScale(0.4, scale) * size, rScale(0.6, scale) * size, rScale(0.6, scale) * size);
+        context->StrokeLine(rScale(0.33, scale) * size, rScale(0.4, scale) * size, rScale(0.33, scale) * size, rScale(0.6, scale) * size);
     } else if(shape & Item::DOWN) {
-        context->StrokeLine(0.5 * size, 0.7 * size, 0.5 * size, 0.5 * size);
-        context->StrokeLine(0.4 * size, 0.6 * size, 0.6 * size, 0.6 * size);
-        context->StrokeLine(0.4 * size, 0.3 * size, 0.6 * size, 0.3 * size);
+        context->StrokeLine(0.5 * size, rScale(0.7, scale) * size, 0.5 * size, 0.5 * size);
+        context->StrokeLine(rScale(0.4, scale) * size, rScale(0.6, scale) * size, rScale(0.6, scale) * size, rScale(0.6, scale) * size);
+        context->StrokeLine(rScale(0.4, scale) * size, rScale(0.32, scale) * size, rScale(0.6, scale) * size, rScale(0.32, scale) * size);
     } else {
-        context->StrokeLine(0.3 * size, 0.5 * size, 0.5 * size, 0.5 * size);
-        context->StrokeLine(0.4 * size, 0.4 * size, 0.4 * size, 0.6 * size);
-        context->StrokeLine(0.7 * size, 0.4 * size, 0.7 * size, 0.6 * size);
+        context->StrokeLine(rScale(0.3, scale) * size, 0.5 * size, 0.5 * size, 0.5 * size);
+        context->StrokeLine(rScale(0.4, scale) * size, rScale(0.4, scale) * size, rScale(0.4, scale) * size, rScale(0.6, scale) * size);
+        context->StrokeLine(rScale(0.67, scale) * size, rScale(0.4, scale) * size, rScale(0.67, scale) * size, rScale(0.6, scale) * size);
     }
     delete context;
     dc.SelectObject(wxNullBitmap);
-    cache[key] = bitmap;
+    if(!toolbar) cache[key] = bitmap;
     return bitmap;
 }
 
-wxBitmap resources::getAmpSourceBitmap(int size, int shape) {
+wxBitmap resources::getAmpSourceBitmap(int size, int shape, bool toolbar) {
     static std::unordered_map<std::pair<int,int>,wxBitmap,HashPairIntInt> cache{};
     std::pair<int,int> key{size, shape};
-    auto iter = cache.find(key);
-    if(iter != cache.end()) {
-        return iter->second;
+    if(!toolbar) {
+        auto iter = cache.find(key);
+        if (iter != cache.end()) {
+            return iter->second;
+        }
     }
     wxBitmap bitmap{initBitmap(size)};
     wxMemoryDC dc{bitmap};
     wxGraphicsContext* context = wxGraphicsContext::Create(dc);
     wxPen pen = wxPen{wxPenInfo(*wxBLACK, std::ceil(size * 22.0 / 1024))};
     context->SetPen(pen);
+    double scale = toolbar ? 1 : 0.4 / 0.7;
     if(shape & Item::DEPENDENT) { //Draw border
         const wxPoint2DDouble points[] = {
-                {0.5 * size, 0.15 * size},
-                {0.85 * size, 0.5 * size},
-                {0.5 * size, 0.85 * size},
-                {0.15 * size, 0.5 * size},
-                {0.5 * size, 0.15 * size}};
+                {0.5 * size, rScale(0.15, scale) * size},
+                {rScale(0.85, scale) * size, 0.5 * size},
+                {0.5 * size, rScale(0.85, scale) * size},
+                {rScale(0.15, scale) * size, 0.5 * size},
+                {0.5 * size, rScale(0.15, scale) * size}};
         context->StrokeLines(5, points);
     }
     else {
-        context->DrawEllipse(0.15 * size, 0.15 * size, 0.7 * size, 0.7 * size);
+        context->DrawEllipse(rScale(0.15, scale) * size, rScale(0.15, scale) * size, 0.7 * scale * size, 0.7 * scale * size);
     }
     if((shape & Item::UP) || (shape & Item::DOWN)) { //Draw wire connections and main part of arrow
-        context->StrokeLine(0.5 * size, 0, 0.5 * size, 0.15 * size);
-        context->StrokeLine(0.5 * size, 0.85 * size, 0.5 * size, size);
-        context->StrokeLine(0.5 * size, 0.7 * size, 0.5 * size, 0.3 * size);
+        context->StrokeLine(0.5 * size, 0, 0.5 * size, rScale(0.15, scale) * size);
+        context->StrokeLine(0.5 * size, rScale(0.85, scale) * size, 0.5 * size, size);
+        context->StrokeLine(0.5 * size, rScale(0.7, scale) * size, 0.5 * size, rScale(0.3, scale) * size);
     } else {
-        context->StrokeLine(0, 0.5 * size, 0.15 * size, 0.5 * size);
-        context->StrokeLine(0.85 * size, 0.5 * size, size, 0.5 * size);
-        context->StrokeLine(0.3 * size, 0.5 * size, 0.7 * size, 0.5 * size);
+        context->StrokeLine(0, 0.5 * size, rScale(0.15, scale) * size, 0.5 * size);
+        context->StrokeLine(rScale(0.85, scale) * size, 0.5 * size, size, 0.5 * size);
+        context->StrokeLine(rScale(0.3, scale) * size, 0.5 * size, rScale(0.7, scale) * size, 0.5 * size);
     }
     if(shape & Item::UP) { //Draw current arrow
-        const wxPoint2DDouble points[] = {{0.47 * size, 0.4 * size}, {0.5 * size, 0.3 * size}, {0.53 * size, 0.4 * size}};
+        const wxPoint2DDouble points[] = {{rScale(0.47, scale) * size, rScale(0.4, scale) * size},
+                                          {0.5 * size, rScale(0.3, scale) * size},
+                                          {rScale(0.53, scale) * size, rScale(0.4, scale) * size}};
         context->StrokeLines(3, points);
     } else if(shape & Item::RIGHT) {
-        const wxPoint2DDouble points[] = {{0.6 * size, 0.47 * size}, {0.7 * size, 0.5 * size}, {0.6 * size, 0.53 * size}};
+        const wxPoint2DDouble points[] = {{rScale(0.6, scale) * size, rScale(0.47, scale) * size},
+                                          {rScale(0.7, scale) * size, 0.5 * size},
+                                          {rScale(0.6, scale) * size, rScale(0.53, scale) * size}};
         context->StrokeLines(3, points);
     } else if(shape & Item::DOWN) {
-        const wxPoint2DDouble points[] = {{0.47 * size, 0.6 * size}, {0.5 * size, 0.7 * size}, {0.53 * size, 0.6 * size}};
+        const wxPoint2DDouble points[] = {{rScale(0.47, scale) * size, rScale(0.6, scale) * size},
+                                          {0.5 * size, rScale(0.7, scale) * size},
+                                          {rScale(0.53, scale) * size, rScale(0.6, scale) * size}};
         context->StrokeLines(3, points);
     } else {
-        const wxPoint2DDouble points[] = {{0.4 * size, 0.47 * size}, {0.3 * size, 0.5 * size}, {0.4 * size, 0.53 * size}};
+        const wxPoint2DDouble points[] = {{rScale(0.4, scale) * size, rScale(0.47, scale) * size},
+                                          {rScale(0.3, scale) * size, 0.5 * size},
+                                          {rScale(0.4, scale) * size, rScale(0.53, scale) * size}};
         context->StrokeLines(3, points);
     }
     delete context;
     dc.SelectObject(wxNullBitmap);
-    cache[key] = bitmap;
+    if(!toolbar) cache[key] = bitmap;
     return bitmap;
 }
 
