@@ -9,13 +9,14 @@
 
 //Helper functions defined at end of file
 namespace {
-    Item valueDialog(const Item& currentItem, bool numeric);
+    Item valueDialog(const Item& currentItem);
     int getDirection(const wxPoint& currentCell, const wxPoint& lastCell);
-    int getOppositeDirection(int direction);
+    int flip(int direction);
+    int rotateCW(int direction);
+    int rotateCCW(int direction);
 }
 
-void WindowGrid::OnDraw(wxDC &dc) {
-    //This function is way too long; I don't like making helper functions that are only used once, though.
+void WindowGrid::OnDraw(wxDC& dc) {
     dc.SetBrush(*wxBLACK_BRUSH);
     dc.SetPen(pen);
     dc.SetFont(font);
@@ -23,139 +24,11 @@ void WindowGrid::OnDraw(wxDC &dc) {
     wxPoint tl = CalcUnscrolledPosition(wxPoint{updateRect.GetLeft(), updateRect.GetTop()});
     wxPoint br = CalcUnscrolledPosition(wxPoint{updateRect.GetRight(), updateRect.GetBottom()});
     int cellSize = 128 + 16 * zoomLevels;
+    wxPoint origin = dc.GetDeviceOrigin();
     for (int r = (tl.y - cellSize + 1) / cellSize; r < std::min((br.y + cellSize - 1) / cellSize, static_cast<int>(grid.getHeight())); r++) {
         for (int c = (tl.x - cellSize + 1) / cellSize; c < std::min((br.x + cellSize - 1) / cellSize, static_cast<int>(grid.getWidth())); c++) {
-            Item item = grid.get(r, c);
-            switch (item.getType()) {
-                case Item::ItemType::none: {
-                    if(dotSize != -1) {
-                        dc.DrawCircle(cellSize / 2 + cellSize * c, cellSize / 2 + cellSize * r, std::max(cellSize * dotSize / 128, 1));
-                    }
-                    break;
-                }
-                case Item::ItemType::resistor: {
-                    if (item.getShape() == Item::HORIZONTAL) {
-                        dc.DrawBitmap(resistorBitmaps[0], cellSize * c, cellSize * r);
-                        dc.DrawLabel(item.getValueStr(), wxRect{cellSize * c, cellSize * r + cellSize * 4 / 17, cellSize, cellSize}, wxALIGN_CENTER_HORIZONTAL | wxALIGN_TOP);
-                    } else {
-                        dc.DrawBitmap(resistorBitmaps[1], cellSize * c, cellSize * r);
-                        if(rotatedText) {
-                            std::wstring value = item.getValueStr();
-                            wxSize textSize = dc.GetTextExtent(value);
-                            dc.DrawRotatedText(value, cellSize * c + cellSize * 40 / 51, cellSize * r + cellSize / 2 - textSize.GetWidth() / 2, 270);
-                        } else {
-                            dc.DrawLabel(item.getValueStr(5), wxRect{cellSize * c + cellSize * 11 / 17, cellSize * r, 0, cellSize}, wxALIGN_CENTER_VERTICAL | wxALIGN_LEFT);
-                        }
-                    }
-                    break;
-                }
-                case Item::ItemType::capacitor: {
-                    if (item.getShape() == Item::HORIZONTAL) {
-                        dc.DrawBitmap(capacitorBitmaps[0], cellSize * c, cellSize * r);
-                        dc.DrawLabel(item.getValueStr(), wxRect{cellSize * c, cellSize * r + cellSize * 2 / 17, cellSize, cellSize}, wxALIGN_CENTER_HORIZONTAL | wxALIGN_TOP);
-                    } else {
-                        dc.DrawBitmap(capacitorBitmaps[1], cellSize * c, cellSize * r);
-                        if(rotatedText) {
-                            std::wstring value = item.getValueStr();
-                            wxSize textSize = dc.GetTextExtent(value);
-                            dc.DrawRotatedText(value, cellSize * c + cellSize * 31 / 34, cellSize * r + cellSize / 2 - textSize.GetWidth() / 2, 270);
-                        } else {
-                            dc.DrawLabel(item.getValueStr(6), wxRect{cellSize * c + cellSize * 4 / 7, cellSize * r, 0, cellSize / 2}, wxALIGN_CENTER_VERTICAL | wxALIGN_LEFT);
-                        }
-                    }
-                    break;
-                }
-                case Item::ItemType::wire: {
-                    int directions = 0;
-                    bool up, down, left, right;
-                    up = down = left = right = false;
-                    wxPoint middle = wxPoint{cellSize / 2 + cellSize * c, cellSize / 2 + cellSize * r};
-                    if (item.getShape() & Item::UP) {
-                        dc.DrawLine(wxPoint{cellSize / 2 + cellSize * c, cellSize * r}, middle);
-                        directions++;
-                        up = true;
-                    }
-                    if (item.getShape() & Item::DOWN) {
-                        dc.DrawLine(wxPoint{cellSize / 2 + cellSize * c, cellSize * (r + 1)}, middle);
-                        directions++;
-                        down = true;
-                    }
-                    if (item.getShape() & Item::LEFT) {
-                        dc.DrawLine(wxPoint{cellSize * c, cellSize / 2 + cellSize * r}, middle);
-                        directions++;
-                        left = true;
-                    }
-                    if (item.getShape() & Item::RIGHT) {
-                        dc.DrawLine(wxPoint{cellSize * (c + 1), cellSize / 2 + cellSize * r}, middle);
-                        directions++;
-                        right = true;
-                    }
-                    if (directions > 2) {
-                        dc.DrawCircle(middle, std::max(cellSize * 3 / 128, 1));
-                    }
-                    std::wstring extraData = item.getExtraData();
-                    if(!extraData.empty()) {
-                        wxSize textSize = dc.GetTextExtent(extraData);
-                        if(directions == 4 || (up && right && directions == 2) || (right && directions == 1) || (up && directions == 1 && !rotatedText)) { //draw in top right corner
-                            dc.DrawLabel(item.getValueStr(6), wxRect{cellSize * c + cellSize * 13/24, cellSize * r, 0, cellSize / 2}, wxALIGN_BOTTOM | wxALIGN_LEFT);
-                        } else if(left && right) { //draw horizontally centered
-                            if(up) {
-                                dc.DrawLabel(extraData, wxRect{cellSize * c, cellSize * r + cellSize / 2, cellSize, 0}, wxALIGN_CENTER_HORIZONTAL | wxALIGN_TOP);
-                            } else {
-                                dc.DrawLabel(extraData, wxRect{cellSize * c, cellSize * r, cellSize, cellSize / 2}, wxALIGN_CENTER_HORIZONTAL | wxALIGN_BOTTOM);
-                            }
-                        } else if(up && down) { //draw vertically centered
-                            if(rotatedText) {
-                                if(right) {
-                                    dc.DrawRotatedText(extraData, cellSize * c + cellSize / 2, cellSize * r + cellSize / 2 - textSize.GetWidth() / 2, 270);
-                                } else {
-                                    dc.DrawRotatedText(extraData, cellSize * c + cellSize * 13 / 24 + textSize.GetHeight(), cellSize * r + cellSize / 2 - textSize.GetWidth() / 2, 270);
-                                }
-                            } else {
-                                std::wstring value = item.getValueStr(6);
-                                if(right) {
-                                    dc.DrawLabel(value, wxRect{cellSize * c, cellSize * r, cellSize * 11 / 24, cellSize}, wxALIGN_CENTER_VERTICAL | wxALIGN_RIGHT);
-                                } else {
-                                    dc.DrawLabel(value, wxRect{cellSize * c + cellSize * 13 / 24, cellSize * r, 0, cellSize}, wxALIGN_CENTER_VERTICAL | wxALIGN_LEFT);
-                                }
-                            }
-                        } else if(right || (down && directions == 1 && !rotatedText)) { //draw in bottom right corner
-                            dc.DrawLabel(item.getValueStr(6), wxRect{cellSize * c + cellSize * 13/24, cellSize * r + cellSize * 13 / 24, 0, 0}, wxALIGN_TOP | wxALIGN_LEFT);
-                        } else if(left && down) { //Draw in bottom left corner
-                            dc.DrawLabel(item.getValueStr(6), wxRect{cellSize * c, cellSize * r + cellSize * 13 / 24, cellSize * 11 / 24, 0}, wxALIGN_RIGHT | wxALIGN_TOP);
-                        } else if(left) { //Draw in top left corner
-                            dc.DrawLabel(item.getValueStr(6), wxRect{cellSize * c, cellSize * r, cellSize * 11 / 24, cellSize * 11 / 24}, wxALIGN_RIGHT | wxALIGN_BOTTOM);
-                        } else if(up) { //Draw in top right corner, rotated
-                            dc.DrawRotatedText(extraData, cellSize * c + cellSize * 13 / 24 + textSize.GetHeight(), cellSize * r + cellSize / 4 - textSize.GetWidth() / 2, 270);
-                        } else if(down) { //Draw in bottom right corner, rotated
-                            dc.DrawRotatedText(extraData, cellSize * c + cellSize * 13 / 24 + textSize.GetHeight(), cellSize * r + cellSize * 3 / 4 - textSize.GetWidth() / 2, 270);
-                        } else { //Draw in center
-                            dc.DrawLabel(extraData, wxRect{cellSize * c, cellSize * r, cellSize, cellSize}, wxALIGN_CENTER);
-                        }
-                    }
-                    break;
-                }
-                case Item::ItemType::amp_source: case Item::ItemType::volt_source: {
-                    wxBitmap* bitmaps = item.getType() == Item::ItemType::amp_source ? ampSourceBitmaps : voltSourceBitmaps;
-                    int bitmapIndex;
-                    if(item.getShape() & Item::UP) bitmapIndex = 0;
-                    else if(item.getShape() & Item::DOWN) bitmapIndex = 1;
-                    else if(item.getShape() & Item::RIGHT) bitmapIndex = 2;
-                    else bitmapIndex = 3;
-                    if(item.getShape() & Item::DEPENDENT) bitmapIndex += 4;
-                    dc.DrawBitmap(bitmaps[bitmapIndex], cellSize * c, cellSize * r);
-                    if((item.getShape() & Item::LEFT) || (item.getShape() & Item::RIGHT)) {
-                        dc.DrawLabel(item.getValueStr(), wxRect{cellSize * c, cellSize * r + cellSize * 5 / 34, cellSize, cellSize}, wxALIGN_CENTER_HORIZONTAL | wxALIGN_TOP);
-                    } else if(rotatedText) {
-                        std::wstring value = item.getValueStr();
-                        wxSize textSize = dc.GetTextExtent(value);
-                        dc.DrawRotatedText(value, cellSize * c + cellSize * 15 / 17, cellSize * r + cellSize / 2 - textSize.GetWidth() / 2, 270);
-                    } else {
-                        dc.DrawLabel(item.getValueStr(4), wxRect{cellSize * c + cellSize * 25 / 34, cellSize * r, cellSize, cellSize}, wxALIGN_CENTER_VERTICAL | wxALIGN_LEFT);
-                    }
-                    break;
-                }
-            }
+            dc.SetDeviceOrigin(origin.x + cellSize * c, origin.y + cellSize * r);
+            grid.get(r, c).draw(dc, cellSize, dotSize, rotatedText, resistorBitmaps, capacitorBitmaps, ampSourceBitmaps, voltSourceBitmaps);
         }
     }
 }
@@ -175,15 +48,15 @@ WindowGrid::WindowGrid(wxWindow *parent, wxWindowID id, const wxPoint &pos, cons
     wireMenu.Append(id::toggle_right, "Toggle right");
     wireMenu.Append(id::toggle_down, "Toggle down");
     fourWayMenu.Append(id::set_value, "Set value");
-    fourWayMenu.Append(id::rotate, "Rotate CW");
+    fourWayMenu.Append(id::rotate_cw, "Rotate CW");
     fourWayMenu.Append(id::rotate_ccw, "Rotate CCW");
     fourWayMenu.Append(id::flip, "Flip");
-    fourWayMenu.Append(id::dependent, "Toggle dependent");
+    fourWayMenu.Append(id::toggle_dependent, "Toggle dependent");
 
-    refresh(load.xScroll, load.yScroll);
+    refreshAll(load.xScroll, load.yScroll);
 }
 
-void WindowGrid::refresh(int xPos, int yPos) {
+void WindowGrid::refreshAll(int xPos, int yPos) {
     if(xPos != -1 && yPos != -1) {
         wxScrolledCanvas::SetScrollbars(16, 16, static_cast<int>(grid.getWidth()) * (8 + zoomLevels), static_cast<int>(grid.getHeight()) * (8 + zoomLevels),xPos, yPos);
     }
@@ -220,7 +93,7 @@ void WindowGrid::reload(const WindowGrid::LoadStruct& load) {
     dotSize = load.dotSize;
     rotatedText = load.rotatedText;
     dirty = false;
-    refresh(load.xScroll, load.yScroll);
+    refreshAll(load.xScroll, load.yScroll);
 }
 
 
@@ -251,7 +124,7 @@ void WindowGrid::onScroll(wxMouseEvent &event) {
                 double mouseYLogical = (grid.getHeight() * (8 + zoomLevels)) * 16 * mouseYFraction;
                 int newScrollX = static_cast<int>(std::max(mouseXLogical - mouseX, 0.0));
                 int newScrollY = static_cast<int>(std::max(mouseYLogical - mouseY, 0.0));
-                refresh(newScrollX / 16, newScrollY / 16);
+                refreshAll(newScrollX / 16, newScrollY / 16);
             }
         }
     } else {
@@ -289,18 +162,13 @@ void WindowGrid::onMotion(wxMouseEvent &event) {
                     int shape = getDirection(lastCell, currentCell);
                     placePartial(currentCell, Item{Item::ItemType::wire, shape, 0});
                     if(lastCell != wxPoint{-1,-1}) {
-                        placePartial(lastCell, Item{Item::ItemType::wire, getOppositeDirection(shape), 0});
+                        placePartial(lastCell, Item{Item::ItemType::wire, flip(shape), 0});
                     }
                     break;
                 }
-                case Item::ItemType::volt_source: {
-                    placePartial(currentCell, Item{Item::ItemType::volt_source, getDirection(currentCell, lastCell), 10});
+                case Item::ItemType::volt_source: case Item::ItemType::amp_source:
+                    placePartial(currentCell, Item{selectedTool, getDirection(currentCell, lastCell), 10});
                     break;
-                }
-                case Item::ItemType::amp_source: {
-                    placePartial(currentCell, Item{Item::ItemType::amp_source, getDirection(currentCell, lastCell), 10});
-                    break;
-                }
                 case Item::ItemType::capacitor:
                     int shape = Item::VERTICAL;
                     if (lastCell.x != currentCell.x) {
@@ -337,9 +205,9 @@ void WindowGrid::placePartial(wxPoint cell, const Item& item) {
     int cellSize = 128 + 16 * zoomLevels;
     wxRect affectedRect{CalcScrolledPosition(cellSize * cell) - wxPoint{5,5}, wxSize{cellSize + 10, cellSize + 10}};
     Item currentItem = grid.get(cell.y, cell.x);
-    switch (item.getType()) {
+    switch (item.type) {
         case Item::ItemType::none: {
-            if (currentItem.getType() != Item::ItemType::none) {
+            if (currentItem.type != Item::ItemType::none) {
                 grid.set(cell.y, cell.x, item);
                 dirty = true;
                 RefreshRect(affectedRect);
@@ -347,27 +215,27 @@ void WindowGrid::placePartial(wxPoint cell, const Item& item) {
             break;
         }
         case Item::ItemType::wire: {
-            if (currentItem.getType() == Item::ItemType::none) {
+            if (currentItem.type == Item::ItemType::none) {
                 grid.set(cell.y, cell.x, item);
                 dirty = true;
                 RefreshRect(affectedRect);
-            } else if (currentItem.getType() == Item::ItemType::wire && !(currentItem.getShape() & item.getShape())) {
-                Item newItem{Item::ItemType::wire, item.getShape() | currentItem.getShape(), 0};
-                grid.set(cell.y, cell.x, newItem);
+            } else if (currentItem.type == Item::ItemType::wire && !(currentItem.shape & item.shape)) {
+                currentItem.shape |= item.shape;
+                grid.set(cell.y, cell.x, currentItem);
                 dirty = true;
                 RefreshRect(affectedRect);
             }
             break;
         }
         case Item::ItemType::resistor: case Item::ItemType::volt_source: case Item::ItemType::amp_source: case Item::ItemType::capacitor: {
-            if (currentItem.getType() == item.getType()) {
-                if (currentItem.getShape() != item.getShape()) {
-                    Item newItem{item.getType(), item.getShape(), currentItem.getValue(), currentItem.getExtraData()};
-                    grid.set(cell.y, cell.x, newItem);
+            if (currentItem.type == item.type) {
+                if (currentItem.shape != item.shape) {
+                    currentItem.shape = item.shape;
+                    grid.set(cell.y, cell.x, currentItem);
                     dirty = true;
                     RefreshRect(affectedRect);
                 }
-            } else if (currentItem.getType() == Item::ItemType::none || currentItem.getType() == Item::ItemType::wire) {
+            } else if (currentItem.type == Item::ItemType::none || currentItem.type == Item::ItemType::wire) {
                 grid.set(cell.y, cell.x, item);
                 dirty = true;
                 RefreshRect(affectedRect);
@@ -391,18 +259,12 @@ void WindowGrid::onLeftDown(wxMouseEvent &event) {
                 placePartial(currentCell, Item{Item::ItemType::resistor, shape, 100});
                 break;
             }
-            case Item::ItemType::wire: {
+            case Item::ItemType::wire:
                 placePartial(currentCell, Item{Item::ItemType::wire, getDirection(lastCell, currentCell), 0});
                 break;
-            }
-            case Item::ItemType::volt_source: {
-                placePartial(currentCell, Item{Item::ItemType::volt_source, getDirection(currentCell, lastCell), 10});
+            case Item::ItemType::volt_source: case Item::ItemType::amp_source:
+                placePartial(currentCell, Item{selectedTool, getDirection(currentCell, lastCell), 10});
                 break;
-            }
-            case Item::ItemType::amp_source: {
-                placePartial(currentCell, Item{Item::ItemType::amp_source, getDirection(currentCell, lastCell), 10});
-                break;
-            }
             case Item::ItemType::capacitor: {
                 int shape = Item::VERTICAL;
                 if (lastCell.x != currentCell.x) {
@@ -420,118 +282,62 @@ void WindowGrid::onRightDown(wxMouseEvent &event) {
     Item currentItem = grid.get(currentCell.y, currentCell.x);
     int cellSize = 128 + 16 * zoomLevels;
     wxRect affectedRect{CalcScrolledPosition(cellSize * currentCell) - wxPoint{5,5}, wxSize{cellSize + 10, cellSize + 10}};
-    switch (currentItem.getType()) {
-        case Item::ItemType::none: break;
-        case Item::ItemType::resistor: case Item::ItemType::capacitor: {
-            int response = GetPopupMenuSelectionFromUser(twoWayMenu);
-            switch (response) {
-                case id::rotate: {
-                    Item item{currentItem.getType(), currentItem.getShape() == Item::HORIZONTAL ? Item::VERTICAL : Item::HORIZONTAL, 0};
-                    placePartial(currentCell, item);
-                    break;
-                }
-                case id::set_value: {
-                    Item item{valueDialog(currentItem, true)};
-                    if(item.getType() != Item::ItemType::none) {
-                        grid.set(currentCell.y, currentCell.x, item);
-                        dirty = true;
-                        RefreshRect(affectedRect);
-                    }
-                    break;
-                }
-                default: {}
-            }
+    wxMenu* menu;
+    switch(currentItem.type) {
+        case Item::ItemType::none:
+            return;
+        case Item::ItemType::resistor: case Item::ItemType::capacitor:
+            menu = &twoWayMenu;
             break;
-        }
-        case Item::ItemType::wire: {
-            int response = GetPopupMenuSelectionFromUser(wireMenu);
-            bool changed = true;
-            Item item;
-            switch (response) {
-                case id::toggle_up: {
-                    item = {Item::ItemType::wire, currentItem.getShape() ^ Item::UP, 0, currentItem.getExtraData()};
-                    break;
-                }
-                case id::toggle_down: {
-                    item = {Item::ItemType::wire, currentItem.getShape() ^ Item::DOWN, 0, currentItem.getExtraData()};
-                    break;
-                }
-                case id::toggle_left: {
-                    item = {Item::ItemType::wire, currentItem.getShape() ^ Item::LEFT, 0, currentItem.getExtraData()};
-                    break;
-                }
-                case id::toggle_right: {
-                    item = {Item::ItemType::wire, currentItem.getShape() ^ Item::RIGHT, 0, currentItem.getExtraData()};
-                    break;
-                }
-                case id::set_value: {
-                    item = valueDialog(currentItem, false);
-                    if(item.getType() == Item::ItemType::none) changed = false;
-                    break;
-                }
-                default: {
-                    changed = false;
-                }
-            }
-            if (changed) {
-                grid.set(currentCell.y, currentCell.x, item);
-                dirty = true;
-                RefreshRect(affectedRect);
-            }
+        case Item::ItemType::wire:
+            menu = &wireMenu;
             break;
-        }
-        case Item::ItemType::amp_source:
-        case Item::ItemType::volt_source: {
-            int response = GetPopupMenuSelectionFromUser(fourWayMenu);
-            switch (response) {
-                case id::rotate: {
-                    int shape = currentItem.getShape() & Item::DEPENDENT;
-                    if(currentItem.getShape() & Item::UP) shape |= Item::RIGHT;
-                    else if(currentItem.getShape() & Item::RIGHT) shape |= Item::DOWN;
-                    else if(currentItem.getShape() & Item::DOWN) shape |= Item::LEFT;
-                    else shape |= Item::UP;
-                    Item item{currentItem.getType(), shape, 0};
-                    placePartial(currentCell, item);
-                    break;
-                }
-                case id::rotate_ccw: {
-                    int shape = currentItem.getShape() & Item::DEPENDENT;
-                    if(currentItem.getShape() & Item::UP) shape |= Item::LEFT;
-                    else if(currentItem.getShape() & Item::RIGHT) shape |= Item::UP;
-                    else if(currentItem.getShape() & Item::DOWN) shape |= Item::RIGHT;
-                    else shape |= Item::DOWN;
-                    Item item{currentItem.getType(), shape, 0};
-                    placePartial(currentCell, item);
-                    break;
-                }
-                case id::flip: {
-                    int shape = currentItem.getShape() & Item::DEPENDENT;
-                    if(currentItem.getShape() & Item::UP) shape |= Item::DOWN;
-                    else if(currentItem.getShape() & Item::RIGHT) shape |= Item::LEFT;
-                    else if(currentItem.getShape() & Item::DOWN) shape |= Item::UP;
-                    else shape |= Item::RIGHT;
-                    Item item{currentItem.getType(), shape, 0};
-                    placePartial(currentCell, item);
-                    break;
-                }
-                case id::set_value: {
-                    Item item{valueDialog(currentItem, !(currentItem.getShape() & Item::DEPENDENT))};
-                    if(item.getType() != Item::ItemType::none) {
-                        grid.set(currentCell.y, currentCell.x, item);
-                        dirty = true;
-                        RefreshRect(affectedRect);
-                    }
-                    break;
-                }
-                case id::dependent: {
-                    Item item{currentItem.getType(), currentItem.getShape() ^ Item::DEPENDENT, 0};
-                    placePartial(currentCell, item);
-                    break;
-                }
-                default: {}
-            }
+        case Item::ItemType::volt_source: case Item::ItemType::amp_source:
+            menu = &fourWayMenu;
             break;
-        }
+    }
+    int shape = currentItem.shape;
+    Item directItem{};
+    switch(GetPopupMenuSelectionFromUser(*menu)) {
+        case id::rotate: 
+            shape = shape == Item::HORIZONTAL ? Item::VERTICAL : Item::HORIZONTAL;
+            break;
+        case id::set_value: 
+            directItem = valueDialog(currentItem);
+            break;
+        case id::toggle_up:
+            shape ^= Item::UP;
+            break;
+        case id::toggle_right:
+            shape ^= Item::RIGHT;
+            break;
+        case id::toggle_down:
+            shape ^= Item::DOWN;
+            break;
+        case id::toggle_left:
+            shape ^= Item::LEFT;
+            break;
+        case id::toggle_dependent:
+            shape ^= Item::DEPENDENT;
+            break;
+        case id::rotate_cw:
+            shape = (shape & Item::DEPENDENT) | rotateCW(shape & (Item::UP | Item::RIGHT | Item::DOWN | Item::LEFT));
+            break;
+        case id::rotate_ccw:
+            shape = (shape & Item::DEPENDENT) | rotateCCW(shape & (Item::UP | Item::RIGHT | Item::DOWN | Item::LEFT));
+            break;
+        case id::flip:
+            shape = (shape & Item::DEPENDENT) | flip(shape & (Item::UP | Item::RIGHT | Item::DOWN | Item::LEFT));
+            break;
+    }
+    if(shape != currentItem.shape) {
+        directItem = currentItem;
+        directItem.shape = shape;
+    }
+    if(directItem.type != Item::ItemType::none) {
+        grid.set(currentCell.y, currentCell.x, directItem);
+        dirty = true;
+        RefreshRect(affectedRect);
     }
 }
 
@@ -603,32 +409,33 @@ void WindowGrid::redo() {
 void WindowGrid::toggleRotatedText() {
     rotatedText = !rotatedText;
     dirty = true;
-    refresh();
+    refreshAll();
 }
 
 WindowGrid::LoadStruct::LoadStruct(Grid grid, int zoom, int xScroll, int yScroll, int dotSize, bool rotatedText) : grid{std::move(grid)}, zoom{zoom}, xScroll{xScroll}, yScroll{yScroll}, dotSize{dotSize}, rotatedText{rotatedText} {}
 
 namespace {
-    Item valueDialog(const Item& currentItem, bool numeric) {
+    Item valueDialog(const Item& currentItem) {
+        bool numeric = !((currentItem.shape & Item::DEPENDENT) || currentItem.type == Item::ItemType::wire);
         wxString valueStr;
-        if(currentItem.getExtraData().empty() && numeric) {
+        if(currentItem.extraData.empty() && numeric) {
             std::stringstream ss{};
-            ss << currentItem.getValue();
+            ss << currentItem.value;
             valueStr = ss.str();
         } else {
-            valueStr = currentItem.getExtraData();
+            valueStr = currentItem.extraData;
         }
         wxTextEntryDialog dialog{nullptr, "Value:", "Set Value", valueStr};
         if (dialog.ShowModal() == wxID_OK) {
             if(numeric && !dialog.GetValue().IsEmpty()) {
                 try {
                     double value = std::stod(dialog.GetValue().utf8_string());
-                    return Item{currentItem.getType(), currentItem.getShape(), value};
+                    return Item{currentItem.type, currentItem.shape, value};
                 } catch (std::exception &e) {
-                    return Item{currentItem.getType(), currentItem.getShape(), 0, dialog.GetValue().wc_str()};
+                    return Item{currentItem.type, currentItem.shape, 0, dialog.GetValue().wc_str()};
                 }
             } else {
-                return Item{currentItem.getType(), currentItem.getShape(), 0, dialog.GetValue().wc_str()};
+                return Item{currentItem.type, currentItem.shape, 0, dialog.GetValue().wc_str()};
             }
         }
         return Item{};
@@ -644,13 +451,31 @@ namespace {
         }
         return shape;
     }
-    int getOppositeDirection(int direction) {
+    int flip(int direction) {
         switch(direction) {
             case Item::UP: return Item::DOWN;
             case Item::RIGHT: return Item::LEFT;
             case Item::DOWN: return Item::UP;
             case Item::LEFT: return Item::RIGHT;
-            default: throw std::invalid_argument("Bad direction"); //IDE says this is unreachable, but says not all code paths return value if I remove it
+            default: throw std::invalid_argument("Bad direction");
+        }
+    }
+    int rotateCW(int direction) {
+        switch(direction) {
+            case Item::UP: return Item::RIGHT;
+            case Item::RIGHT: return Item::DOWN;
+            case Item::DOWN: return Item::LEFT;
+            case Item::LEFT: return Item::UP;
+            default: throw std::invalid_argument("Bad direction");
+        }
+    }
+    int rotateCCW(int direction) {
+        switch(direction) {
+            case Item::UP: return Item::LEFT;
+            case Item::RIGHT: return Item::UP;
+            case Item::DOWN: return Item::RIGHT;
+            case Item::LEFT: return Item::DOWN;
+            default: throw std::invalid_argument("Bad direction");
         }
     }
 }

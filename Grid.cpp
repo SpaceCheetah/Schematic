@@ -23,10 +23,10 @@ Item Grid::get(uint32_t row, uint32_t col) const {
     return iterator->second;
 }
 
-void Grid::set(uint32_t row, uint32_t col, Item item) {
+void Grid::set(uint32_t row, uint32_t col, const Item& item) {
     Item previous = get(row, col);
     uint64_t key = (static_cast<uint64_t>(row) << 32) | col;
-    if(item.getType() == Item::ItemType::none) {
+    if(item.type == Item::ItemType::none) {
         gridMap.erase(key);
     } else {
         gridMap[key] = item;
@@ -56,12 +56,12 @@ void Grid::doOperation(std::pair<uint64_t, Item> &operation) {
     auto iterator = gridMap.find(operation.first);
     if(iterator == gridMap.end()) {
         operation = {operation.first, Item{}};
-        if(operationCopy.second.getType() != Item::ItemType::none) {
+        if(operationCopy.second.type != Item::ItemType::none) {
             gridMap[operation.first] = operationCopy.second;
         }
     } else {
         operation = {operation.first, iterator->second};
-        if(operationCopy.second.getType() == Item::ItemType::none) {
+        if(operationCopy.second.type == Item::ItemType::none) {
             gridMap.erase(iterator);
         } else {
             gridMap[operation.first] = operationCopy.second;

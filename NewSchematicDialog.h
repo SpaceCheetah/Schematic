@@ -3,7 +3,7 @@
 
 class NewSchematicDialog : public wxDialog {
 public:
-    NewSchematicDialog(wxWindow* parent);
+    explicit NewSchematicDialog(wxWindow* parent);
     wxSize getValue() const;
 private:
     wxTextCtrl* numRowsCtrl;

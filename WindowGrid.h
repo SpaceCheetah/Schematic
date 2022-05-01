@@ -28,7 +28,7 @@ private:
     void onMotion(wxMouseEvent& event);
     void onLeftDown(wxMouseEvent& event);
     void onRightDown(wxMouseEvent& event);
-    void refresh(int xPos = -1, int yPos = -1);
+    void refreshAll(int xPos = -1, int yPos = -1);
     void placePartial(wxPoint cell, const Item& item);
     Grid grid;
     wxFont font;

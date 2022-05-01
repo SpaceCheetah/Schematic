@@ -11,6 +11,7 @@ namespace id {
         tool_bin,
         tool_capacitor,
         rotate,
+        rotate_cw,
         rotate_ccw,
         flip,
         set_value,
@@ -18,13 +19,13 @@ namespace id {
         toggle_left,
         toggle_right,
         toggle_down,
+        toggle_dependent,
         file_new,
         file_save,
         file_save_as,
         file_load,
         view_dot_size,
         view_rotated_text,
-        dependent,
         dot_size_slider
     };
 }

@@ -24,19 +24,6 @@ void Item::save(std::ofstream& ofstream) {
     ofstream.write(reinterpret_cast<char*>(extraData.data()), stringSize * sizeof(wchar_t));
 }
 
-
-Item::ItemType Item::getType() const {
-    return type;
-}
-
-int Item::getShape() const {
-    return shape;
-}
-
-double Item::getValue() const {
-    return value;
-}
-
 namespace {
     std::pair<double, wchar_t> getSI(double value) {
         double absValue = abs(value);
@@ -121,6 +108,133 @@ std::wstring Item::getValueStr(int split) const {
     }
 }
 
-std::wstring Item::getExtraData() const {
-    return extraData;
+void Item::draw(wxDC& dc, int cellSize, int dotSize, bool rotatedText, wxBitmap* resistorBitmaps, wxBitmap* capacitorBitmaps, wxBitmap* ampSourceBitmaps, wxBitmap* voltSourceBitmaps) {
+    switch(type) {
+        case ItemType::none:
+            if(dotSize != -1) {
+                dc.DrawCircle(cellSize / 2 , cellSize / 2, std::max(cellSize * dotSize / 128, 1));
+            }
+            break;
+        case Item::ItemType::resistor: {
+            if (shape == Item::HORIZONTAL) {
+                dc.DrawBitmap(resistorBitmaps[0], 0, 0);
+                dc.DrawLabel(getValueStr(), wxRect{0, cellSize * 4 / 17, cellSize, cellSize}, wxALIGN_CENTER_HORIZONTAL | wxALIGN_TOP);
+            } else {
+                dc.DrawBitmap(resistorBitmaps[1], 0, 0);
+                if(rotatedText) {
+                    std::wstring valueStr = getValueStr();
+                    wxSize textSize = dc.GetTextExtent(valueStr);
+                    dc.DrawRotatedText(valueStr, cellSize * 40 / 51, cellSize / 2 - textSize.GetWidth() / 2, 270);
+                } else {
+                    dc.DrawLabel(getValueStr(5), wxRect{cellSize * 11 / 17, 0, 0, cellSize}, wxALIGN_CENTER_VERTICAL | wxALIGN_LEFT);
+                }
+            }
+            break;
+        }
+        case Item::ItemType::capacitor: {
+            if (shape == Item::HORIZONTAL) {
+                dc.DrawBitmap(capacitorBitmaps[0], 0, 0);
+                dc.DrawLabel(getValueStr(), wxRect{0, cellSize * 2 / 17, cellSize, cellSize}, wxALIGN_CENTER_HORIZONTAL | wxALIGN_TOP);
+            } else {
+                dc.DrawBitmap(capacitorBitmaps[1], 0, 0);
+                if(rotatedText) {
+                    std::wstring valueStr = getValueStr();
+                    wxSize textSize = dc.GetTextExtent(valueStr);
+                    dc.DrawRotatedText(valueStr, cellSize * 31 / 34, cellSize / 2 - textSize.GetWidth() / 2, 270);
+                } else {
+                    dc.DrawLabel(getValueStr(6), wxRect{cellSize * 4 / 7, 0, 0, cellSize / 2}, wxALIGN_CENTER_VERTICAL | wxALIGN_LEFT);
+                }
+            }
+            break;
+        }
+        case Item::ItemType::wire: {
+            int directions = 0;
+            bool up, down, left, right;
+            up = down = left = right = false;
+            wxPoint middle = wxPoint{cellSize / 2, cellSize / 2};
+            if (shape & Item::UP) {
+                dc.DrawLine(wxPoint{cellSize / 2, 0}, middle);
+                directions++;
+                up = true;
+            }
+            if (shape & Item::DOWN) {
+                dc.DrawLine(wxPoint{cellSize / 2, cellSize}, middle);
+                directions++;
+                down = true;
+            }
+            if (shape & Item::LEFT) {
+                dc.DrawLine(wxPoint{0, cellSize / 2}, middle);
+                directions++;
+                left = true;
+            }
+            if (shape & Item::RIGHT) {
+                dc.DrawLine(wxPoint{cellSize, cellSize / 2}, middle);
+                directions++;
+                right = true;
+            }
+            if (directions > 2) {
+                dc.DrawCircle(middle, std::max(cellSize * 3 / 128, 1));
+            }
+            if(!extraData.empty()) {
+                wxSize textSize = dc.GetTextExtent(extraData);
+                if(directions == 4 || (up && right && directions == 2) || (right && directions == 1) || (up && directions == 1 && !rotatedText)) { //draw in top right corner
+                    dc.DrawLabel(getValueStr(6), wxRect{cellSize * 13/24, 0, 0, cellSize / 2}, wxALIGN_BOTTOM | wxALIGN_LEFT);
+                } else if(left && right) { //draw horizontally centered
+                    if(up) {
+                        dc.DrawLabel(extraData, wxRect{0, cellSize / 2, cellSize, 0}, wxALIGN_CENTER_HORIZONTAL | wxALIGN_TOP);
+                    } else {
+                        dc.DrawLabel(extraData, wxRect{0, 0, cellSize, cellSize / 2}, wxALIGN_CENTER_HORIZONTAL | wxALIGN_BOTTOM);
+                    }
+                } else if(up && down) { //draw vertically centered
+                    if(rotatedText) {
+                        if(right) {
+                            dc.DrawRotatedText(extraData, cellSize / 2, cellSize / 2 - textSize.GetWidth() / 2, 270);
+                        } else {
+                            dc.DrawRotatedText(extraData, cellSize * 13 / 24 + textSize.GetHeight(), cellSize / 2 - textSize.GetWidth() / 2, 270);
+                        }
+                    } else {
+                        std::wstring valueStr = getValueStr(6);
+                        if(right) {
+                            dc.DrawLabel(valueStr, wxRect{0, 0, cellSize * 11 / 24, cellSize}, wxALIGN_CENTER_VERTICAL | wxALIGN_RIGHT);
+                        } else {
+                            dc.DrawLabel(valueStr, wxRect{cellSize * 13 / 24, 0, 0, cellSize}, wxALIGN_CENTER_VERTICAL | wxALIGN_LEFT);
+                        }
+                    }
+                } else if(right || (down && directions == 1 && !rotatedText)) { //draw in bottom right corner
+                    dc.DrawLabel(getValueStr(6), wxRect{cellSize * 13/24, cellSize * 13 / 24, 0, 0}, wxALIGN_TOP | wxALIGN_LEFT);
+                } else if(left && down) { //Draw in bottom left corner
+                    dc.DrawLabel(getValueStr(6), wxRect{0, cellSize * 13 / 24, cellSize * 11 / 24, 0}, wxALIGN_RIGHT | wxALIGN_TOP);
+                } else if(left) { //Draw in top left corner
+                    dc.DrawLabel(getValueStr(6), wxRect{0, 0, cellSize * 11 / 24, cellSize * 11 / 24}, wxALIGN_RIGHT | wxALIGN_BOTTOM);
+                } else if(up) { //Draw in top right corner, rotated
+                    dc.DrawRotatedText(extraData, cellSize * 13 / 24 + textSize.GetHeight(), cellSize / 4 - textSize.GetWidth() / 2, 270);
+                } else if(down) { //Draw in bottom right corner, rotated
+                    dc.DrawRotatedText(extraData, cellSize * 13 / 24 + textSize.GetHeight(), cellSize * 3 / 4 - textSize.GetWidth() / 2, 270);
+                } else { //Draw in center
+                    dc.DrawLabel(extraData, wxRect{0, 0, cellSize, cellSize}, wxALIGN_CENTER);
+                }
+            }
+            break;
+        }
+        case Item::ItemType::amp_source: case Item::ItemType::volt_source: {
+            wxBitmap* bitmaps = type == Item::ItemType::amp_source ? ampSourceBitmaps : voltSourceBitmaps;
+            int bitmapIndex;
+            if(shape & Item::UP) bitmapIndex = 0;
+            else if(shape & Item::DOWN) bitmapIndex = 1;
+            else if(shape & Item::RIGHT) bitmapIndex = 2;
+            else bitmapIndex = 3;
+            if(shape & Item::DEPENDENT) bitmapIndex += 4;
+            dc.DrawBitmap(bitmaps[bitmapIndex], 0, 0);
+            if((shape & Item::LEFT) || (shape & Item::RIGHT)) {
+                dc.DrawLabel(getValueStr(), wxRect{0, cellSize * 5 / 34, cellSize, cellSize}, wxALIGN_CENTER_HORIZONTAL | wxALIGN_TOP);
+            } else if(rotatedText) {
+                std::wstring valueStr = getValueStr();
+                wxSize textSize = dc.GetTextExtent(valueStr);
+                dc.DrawRotatedText(valueStr, cellSize * 15 / 17, cellSize / 2 - textSize.GetWidth() / 2, 270);
+            } else {
+                dc.DrawLabel(getValueStr(4), wxRect{cellSize * 25 / 34, 0, cellSize, cellSize}, wxALIGN_CENTER_VERTICAL | wxALIGN_LEFT);
+            }
+            break;
+        }
+    }
 }
