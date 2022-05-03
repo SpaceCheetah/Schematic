@@ -28,7 +28,7 @@ void WindowGrid::OnDraw(wxDC& dc) {
     for (int r = (tl.y - cellSize + 1) / cellSize; r < std::min((br.y + cellSize - 1) / cellSize, static_cast<int>(grid.getHeight())); r++) {
         for (int c = (tl.x - cellSize + 1) / cellSize; c < std::min((br.x + cellSize - 1) / cellSize, static_cast<int>(grid.getWidth())); c++) {
             dc.SetDeviceOrigin(origin.x + cellSize * c, origin.y + cellSize * r);
-            grid.get(r, c).draw(dc, cellSize, dotSize, rotatedText, resistorBitmaps, capacitorBitmaps, ampSourceBitmaps, voltSourceBitmaps);
+            grid.get(r, c).draw(dc, cellSize, dotSize, rotatedText, resistorBitmaps, capacitorBitmaps, ampSourceBitmaps, voltSourceBitmaps, switchBitmaps);
         }
     }
 }
@@ -42,7 +42,7 @@ WindowGrid::WindowGrid(wxWindow *parent, wxWindowID id, const wxPoint &pos, cons
 
     twoWayMenu.Append(id::set_value, "Set value");
     twoWayMenu.Append(id::rotate, "Rotate");
-    wireMenu.Append(id::set_value, "Set value");
+    wireMenu.Append(id::set_value, "Set label");
     wireMenu.Append(id::toggle_up, "Toggle up");
     wireMenu.Append(id::toggle_left, "Toggle left");
     wireMenu.Append(id::toggle_right, "Toggle right");
@@ -52,6 +52,9 @@ WindowGrid::WindowGrid(wxWindow *parent, wxWindowID id, const wxPoint &pos, cons
     fourWayMenu.Append(id::rotate_ccw, "Rotate CCW");
     fourWayMenu.Append(id::flip, "Flip");
     fourWayMenu.Append(id::toggle_dependent, "Toggle dependent");
+    switchMenu.Append(id::set_value, "Set label");
+    switchMenu.Append(id::rotate, "Rotate");
+    switchMenu.Append(id::toggle_closed, "Toggle closed");
 
     refreshAll(load.xScroll, load.yScroll);
 }
@@ -84,6 +87,10 @@ void WindowGrid::refreshAll(int xPos, int yPos) {
     ampSourceBitmaps[7] = resources::getAmpSourceBitmap(size, Item::LEFT | Item::DEPENDENT, false);
     capacitorBitmaps[0] = resources::getCapacitorBitmap(size, false);
     capacitorBitmaps[1] = resources::getCapacitorBitmap(size, true);
+    switchBitmaps[0] = resources::getSwitchBitmap(size, false, false);
+    switchBitmaps[1] = resources::getSwitchBitmap(size, true, false);
+    switchBitmaps[2] = resources::getSwitchBitmap(size, false, true);
+    switchBitmaps[3] = resources::getSwitchBitmap(size, true, true);
     Refresh();
 }
 
@@ -146,16 +153,16 @@ void WindowGrid::onMotion(wxMouseEvent &event) {
         lastCell = currentCell;
         currentCell = cell;
         if (event.LeftIsDown() && currentCell != wxPoint{-1,-1}) {
-            switch (selectedTool) {
+            switch(selectedTool) {
                 case Item::ItemType::none:
                     placePartial(currentCell, Item{});
                     break;
-                case Item::ItemType::resistor: {
+                case Item::ItemType::resistor: case Item::ItemType::capacitor: case Item::ItemType::toggle: {
                     int shape = Item::VERTICAL;
                     if (lastCell.x != currentCell.x) {
                         shape = Item::HORIZONTAL;
                     }
-                    placePartial(currentCell, Item{Item::ItemType::resistor, shape, 100});
+                    placePartial(currentCell, Item{selectedTool, shape, Item::defaultValue(selectedTool)});
                     break;
                 }
                 case Item::ItemType::wire: {
@@ -167,14 +174,7 @@ void WindowGrid::onMotion(wxMouseEvent &event) {
                     break;
                 }
                 case Item::ItemType::volt_source: case Item::ItemType::amp_source:
-                    placePartial(currentCell, Item{selectedTool, getDirection(currentCell, lastCell), 10});
-                    break;
-                case Item::ItemType::capacitor:
-                    int shape = Item::VERTICAL;
-                    if (lastCell.x != currentCell.x) {
-                        shape = Item::HORIZONTAL;
-                    }
-                    placePartial(currentCell, Item{Item::ItemType::capacitor, shape, 1e-4});
+                    placePartial(currentCell, Item{selectedTool, getDirection(currentCell, lastCell), Item::defaultValue(selectedTool)});
                     break;
             }
         }
@@ -227,7 +227,7 @@ void WindowGrid::placePartial(wxPoint cell, const Item& item) {
             }
             break;
         }
-        case Item::ItemType::resistor: case Item::ItemType::volt_source: case Item::ItemType::amp_source: case Item::ItemType::capacitor: {
+        case Item::ItemType::resistor: case Item::ItemType::volt_source: case Item::ItemType::amp_source: case Item::ItemType::capacitor: case Item::ItemType::toggle: {
             if (currentItem.type == item.type) {
                 if (currentItem.shape != item.shape) {
                     currentItem.shape = item.shape;
@@ -251,28 +251,20 @@ void WindowGrid::onLeftDown(wxMouseEvent &event) {
             case Item::ItemType::none:
                 placePartial(currentCell, Item{});
                 break;
-            case Item::ItemType::resistor: {
+            case Item::ItemType::resistor: case Item::ItemType::capacitor: case Item::ItemType::toggle: {
                 int shape = Item::VERTICAL;
                 if (lastCell.x != currentCell.x) {
                     shape = Item::HORIZONTAL;
                 }
-                placePartial(currentCell, Item{Item::ItemType::resistor, shape, 100});
+                placePartial(currentCell, Item{selectedTool, shape, Item::defaultValue(selectedTool)});
                 break;
             }
             case Item::ItemType::wire:
                 placePartial(currentCell, Item{Item::ItemType::wire, getDirection(lastCell, currentCell), 0});
                 break;
             case Item::ItemType::volt_source: case Item::ItemType::amp_source:
-                placePartial(currentCell, Item{selectedTool, getDirection(currentCell, lastCell), 10});
+                placePartial(currentCell, Item{selectedTool, getDirection(currentCell, lastCell), Item::defaultValue(selectedTool)});
                 break;
-            case Item::ItemType::capacitor: {
-                int shape = Item::VERTICAL;
-                if (lastCell.x != currentCell.x) {
-                    shape = Item::HORIZONTAL;
-                }
-                placePartial(currentCell, Item{Item::ItemType::capacitor, shape, 1e-4});
-                break;
-            }
         }
     }
     event.Skip();
@@ -294,6 +286,9 @@ void WindowGrid::onRightDown(wxMouseEvent &event) {
             break;
         case Item::ItemType::volt_source: case Item::ItemType::amp_source:
             menu = &fourWayMenu;
+            break;
+        case Item::ItemType::toggle:
+            menu = &switchMenu;
             break;
     }
     int shape = currentItem.shape;
@@ -319,6 +314,9 @@ void WindowGrid::onRightDown(wxMouseEvent &event) {
             break;
         case id::toggle_dependent:
             shape ^= Item::DEPENDENT;
+            break;
+        case id::toggle_closed:
+            shape ^= Item::CLOSED;
             break;
         case id::rotate_cw:
             shape = (shape & Item::DEPENDENT) | rotateCW(shape & (Item::UP | Item::RIGHT | Item::DOWN | Item::LEFT));

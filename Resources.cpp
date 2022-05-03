@@ -25,19 +25,31 @@ namespace {
         memset(image.GetAlpha(), 0, size * size); //set to fully transparent
         return {image};
     }
-    struct HashPairIntBool {
+
+    double rScale(double d, double scale) { //radial scale (scaling point from center)
+        return 0.5 + (d - 0.5) * scale;
+    }
+}
+
+namespace std { //used by std::unordered_map
+    template<>
+    struct hash<std::pair<int,bool>> {
         size_t operator() (std::pair<int,bool> key) const {
             return key.first | (static_cast<size_t>(key.second) << (sizeof(int) * 8 + 1));
         }
     };
-    struct HashPairIntInt {
+    template<>
+    struct hash<std::pair<int,int>> {
         size_t operator() (std::pair<int,int> key) const {
             return (static_cast<size_t>(key.first) << (sizeof(int) * 8)) | key.second;
         }
     };
-    double rScale(double d, double scale) { //radial scale (scaling point from center)
-        return 0.5 + (d - 0.5) * scale;
-    }
+    template<>
+    struct hash<std::tuple<int,bool,bool>> {
+        size_t operator() (std::tuple<int,bool,bool> key) const {
+            return std::get<0>(key) | (static_cast<size_t>(std::get<1>(key)) << (sizeof(int) * 8 + 1)) | (static_cast<size_t>(std::get<2>(key)) << (sizeof(int) * 8 + 2));
+        }
+    };
 }
 
 wxBitmap resources::getBinBitmap(int size) { //doing it this way instead of image.Scale to get antialiasing
@@ -53,7 +65,7 @@ wxBitmap resources::getBinBitmap(int size) { //doing it this way instead of imag
 }
 
 wxBitmap resources::getResistorBitmap(int size, bool rotated) {
-    static std::unordered_map<std::pair<int,bool>,wxBitmap,HashPairIntBool> cache{};
+    static std::unordered_map<std::pair<int,bool>, wxBitmap> cache{};
     std::pair<int,bool> key{size, rotated};
     auto iter = cache.find(key);
     if(iter != cache.end()) {
@@ -98,7 +110,7 @@ wxBitmap resources::getWireBitmap(int size) {
 }
 
 wxBitmap resources::getVoltSourceBitmap(int size, int shape, bool toolbar) {
-    static std::unordered_map<std::pair<int, int>, wxBitmap, HashPairIntInt> cache{};
+    static std::unordered_map<std::pair<int,int>, wxBitmap> cache{};
     std::pair<int, int> key{size, shape};
     if(!toolbar) {
         auto iter = cache.find(key);
@@ -155,7 +167,7 @@ wxBitmap resources::getVoltSourceBitmap(int size, int shape, bool toolbar) {
 }
 
 wxBitmap resources::getAmpSourceBitmap(int size, int shape, bool toolbar) {
-    static std::unordered_map<std::pair<int,int>,wxBitmap,HashPairIntInt> cache{};
+    static std::unordered_map<std::pair<int,int>,wxBitmap> cache{};
     std::pair<int,int> key{size, shape};
     if(!toolbar) {
         auto iter = cache.find(key);
@@ -218,7 +230,7 @@ wxBitmap resources::getAmpSourceBitmap(int size, int shape, bool toolbar) {
 }
 
 wxBitmap resources::getCapacitorBitmap(int size, bool rotated) {
-    static std::unordered_map<std::pair<int,bool>,wxBitmap,HashPairIntBool> cache{};
+    static std::unordered_map<std::pair<int,bool>, wxBitmap> cache{};
     std::pair<int,bool> key{size, rotated};
     auto iter = cache.find(key);
     if(iter != cache.end()) {
@@ -239,6 +251,46 @@ wxBitmap resources::getCapacitorBitmap(int size, bool rotated) {
         context->StrokeLine(0.58 * size, 0.5 * size, size, 0.5 * size);
         context->StrokeLine(0.42 * size, 0.3 * size, 0.42 * size, 0.7 * size);
         context->StrokeLine(0.58 * size, 0.3 * size, 0.58 * size, 0.7 * size);
+    }
+    delete context;
+    dc.SelectObject(wxNullBitmap);
+    cache[key] = bitmap;
+    return bitmap;
+}
+
+wxBitmap resources::getSwitchBitmap(int size, bool rotated, bool closed) {
+    static std::unordered_map<std::tuple<int,bool,bool>, wxBitmap> cache{};
+    std::tuple<int,bool,bool> key {size, rotated, closed};
+    auto iter = cache.find(key);
+    if(iter != cache.end()) {
+        return iter->second;
+    }
+    wxBitmap bitmap{initBitmap(size)};
+    wxMemoryDC dc{bitmap};
+    wxGraphicsContext* context = wxGraphicsContext::Create(dc);
+    int border = std::ceil(size * 22.0 / 1024);
+    wxPen pen = wxPen{wxPenInfo(*wxBLACK, border)};
+    context->SetPen(pen);
+    if(rotated) {
+        context->DrawEllipse(0.45 * size, border, 0.1 * size, 0.1 * size);
+        context->DrawEllipse(0.45 * size, 0.9 * size - border, 0.1 * size, 0.1 * size);
+        context->StrokeLine(0.5 * size, border, 0.5 * size, -1);
+        context->StrokeLine(0.5 * size, size - border, 0.5 * size, size + 1);
+        if(closed) {
+            context->StrokeLine(0.5 * size, 0.1 * size + border, 0.5 * size, 0.9 * size - border);
+        } else {
+            context->StrokeLine(0.5 * size, 0.1 * size + border, 0.2 * size, 0.8 * size - border);
+        }
+    } else {
+        context->DrawEllipse(border, 0.45 * size, 0.1 * size, 0.1 * size);
+        context->DrawEllipse(0.9 * size - border, 0.45 * size, 0.1 * size, 0.1 * size);
+        context->StrokeLine(border, 0.5 * size, -1, 0.5 * size);
+        context->StrokeLine(size - border, 0.5 * size, size + 1, 0.5 * size);
+        if(closed) {
+            context->StrokeLine(0.1 * size + border, 0.5 * size, 0.9 * size - border, 0.5 * size);
+        } else {
+            context->StrokeLine(0.1 * size + border, 0.5 * size, 0.8 * size - border, 0.2 * size);
+        }
     }
     delete context;
     dc.SelectObject(wxNullBitmap);

@@ -16,6 +16,7 @@ FrameMain::FrameMain(const std::wstring& fileIn) : wxFrame(nullptr, wxID_ANY, "S
     Bind(wxEVT_TOOL, [this](wxCommandEvent& evt) {windowGrid->selectedTool = Item::ItemType::volt_source;}, id::tool_volt_source);
     Bind(wxEVT_TOOL, [this](wxCommandEvent& evt) {windowGrid->selectedTool = Item::ItemType::amp_source;}, id::tool_amp_source);
     Bind(wxEVT_TOOL, [this](wxCommandEvent& evt) {windowGrid->selectedTool = Item::ItemType::capacitor;}, id::tool_capacitor);
+    Bind(wxEVT_TOOL, [this](wxCommandEvent& evt) {windowGrid->selectedTool = Item::ItemType::toggle;}, id::tool_switch);
     Bind(wxEVT_TOOL, [this](wxCommandEvent& evt) {windowGrid->selectedTool = Item::ItemType::none;}, id::tool_bin);
     Bind(wxEVT_MENU, [this](wxCommandEvent& evt) {onSave(false);}, id::file_save);
     Bind(wxEVT_MENU, [this](wxCommandEvent& evt) {onSave(true);}, id::file_save_as);
@@ -37,6 +38,7 @@ FrameMain::FrameMain(const std::wstring& fileIn) : wxFrame(nullptr, wxID_ANY, "S
     toolbar->AddRadioTool(id::tool_volt_source, "Voltage Source", resources::getVoltSourceBitmap(dip32, Item::RIGHT, true), wxNullBitmap, "Voltage Source");
     toolbar->AddRadioTool(id::tool_amp_source, "Current Source", resources::getAmpSourceBitmap(dip32, Item::RIGHT, true), wxNullBitmap, "Current Source");
     toolbar->AddRadioTool(id::tool_capacitor, "Capacitor", resources::getCapacitorBitmap(dip32, false), wxNullBitmap, "Capacitor");
+    toolbar->AddRadioTool(id::tool_switch, "Switch", resources::getSwitchBitmap(dip32, false, false), wxNullBitmap, "Switch");
     toolbar->AddRadioTool(id::tool_bin, "Delete", resources::getBinBitmap(dip32), wxNullBitmap, "Delete");
     toolbar->Realize();
     toolbar->Fit();
@@ -99,6 +101,10 @@ void FrameMain::onChar(wxKeyEvent& evt) {
             windowGrid->selectedTool = Item::ItemType::capacitor;
             break;
         case '6':
+            toolbar->ToggleTool(id::tool_switch, true);
+            windowGrid->selectedTool = Item::ItemType::toggle;
+            break;
+        case '7':
             toolbar->ToggleTool(id::tool_bin, true);
             windowGrid->selectedTool = Item::ItemType::none;
             break;

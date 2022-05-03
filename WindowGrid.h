@@ -38,10 +38,12 @@ private:
     wxMenu twoWayMenu{};
     wxMenu wireMenu{};
     wxMenu fourWayMenu{};
+    wxMenu switchMenu{};
     wxBitmap resistorBitmaps[2];
     wxBitmap voltSourceBitmaps[8];
     wxBitmap ampSourceBitmaps[8];
     wxBitmap capacitorBitmaps[2];
+    wxBitmap switchBitmaps[4];
     int dotSize;
     bool rotatedText;
 };

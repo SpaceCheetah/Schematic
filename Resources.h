@@ -10,4 +10,5 @@ namespace resources {
     wxBitmap getVoltSourceBitmap(int size, int shape, bool toolbar);
     wxBitmap getAmpSourceBitmap(int size, int shape, bool toolbar);
     wxBitmap getCapacitorBitmap(int size, bool rotated);
+    wxBitmap getSwitchBitmap(int size, bool rotated, bool closed);
 }

@@ -108,7 +108,7 @@ std::wstring Item::getValueStr(int split) const {
     }
 }
 
-void Item::draw(wxDC& dc, int cellSize, int dotSize, bool rotatedText, wxBitmap* resistorBitmaps, wxBitmap* capacitorBitmaps, wxBitmap* ampSourceBitmaps, wxBitmap* voltSourceBitmaps) {
+void Item::draw(wxDC& dc, int cellSize, int dotSize, bool rotatedText, wxBitmap* resistorBitmaps, wxBitmap* capacitorBitmaps, wxBitmap* ampSourceBitmaps, wxBitmap* voltSourceBitmaps, wxBitmap* switchBitmaps) {
     switch(type) {
         case ItemType::none:
             if(dotSize != -1) {
@@ -236,5 +236,44 @@ void Item::draw(wxDC& dc, int cellSize, int dotSize, bool rotatedText, wxBitmap*
             }
             break;
         }
+        case Item::ItemType::toggle: {
+            bool vertical = false;
+            bool closed = false;
+            int bitmapIndex = 0;
+            if(shape & Item::VERTICAL) {
+                bitmapIndex = 1;
+                vertical = true;
+            }
+            if(shape & Item::CLOSED) {
+                bitmapIndex += 2;
+                closed = true;
+            }
+            dc.DrawBitmap(switchBitmaps[bitmapIndex], 0, 0);
+            if(vertical) {
+                if(rotatedText) {
+                    wxSize textSize = dc.GetTextExtent(extraData);
+                    dc.DrawRotatedText(extraData, cellSize * 13 / 17, cellSize / 2 - textSize.GetWidth() / 2, 270);
+                } else {
+                    dc.DrawLabel(getValueStr(5), wxRect{cellSize * 10 / 17, 0, 0, cellSize}, wxALIGN_CENTER_VERTICAL | wxALIGN_LEFT);
+                }
+            } else if(closed) {
+                dc.DrawLabel(extraData, wxRect{0, cellSize * 5 / 17, cellSize, 0}, wxALIGN_CENTER_HORIZONTAL | wxALIGN_TOP);
+            } else {
+                dc.DrawLabel(extraData, wxRect{0, cellSize * 10 / 17, cellSize, 0}, wxALIGN_CENTER_HORIZONTAL | wxALIGN_TOP);
+            }
+        }
+    }
+}
+
+double Item::defaultValue(Item::ItemType type) {
+    switch(type) {
+        case ItemType::resistor:
+            return 100;
+        case ItemType::volt_source: case Item::ItemType::amp_source:
+            return 10;
+        case ItemType::capacitor:
+            return 1e-4;
+        default:
+            return 0;
     }
 }
