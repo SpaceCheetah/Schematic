@@ -34,7 +34,7 @@ void WindowGrid::OnDraw(wxDC& dc) {
 }
 
 WindowGrid::WindowGrid(wxWindow *parent, wxWindowID id, const wxPoint &pos, const wxSize &size, const LoadStruct& load)
-        : wxScrolledCanvas(parent, id, pos, size), grid{load.grid}, zoomLevels{load.zoom}, dotSize{load.dotSize}, rotatedText{load.rotatedText} {
+        : wxScrolledCanvas(parent, id, pos, size), grid{load.grid}, zoomLevels{load.zoom}, dotSize{load.dotSize}, rotatedText{load.rotatedText}, shadedBackground{load.shadedBackground} {
     Bind(wxEVT_MOUSEWHEEL, &WindowGrid::onScroll, this);
     Bind(wxEVT_LEFT_DOWN, &WindowGrid::onLeftDown, this);
     Bind(wxEVT_MOTION, &WindowGrid::onMotion, this);
@@ -91,6 +91,7 @@ void WindowGrid::refreshAll(int xPos, int yPos) {
     switchBitmaps[1] = resources::getSwitchBitmap(size, true, false);
     switchBitmaps[2] = resources::getSwitchBitmap(size, false, true);
     switchBitmaps[3] = resources::getSwitchBitmap(size, true, true);
+    SetBackgroundColour(wxTheColourDatabase->Find(shadedBackground ? "LIGHT GREY" : "WHITE"));
     Refresh();
 }
 
@@ -99,6 +100,7 @@ void WindowGrid::reload(const WindowGrid::LoadStruct& load) {
     zoomLevels = load.zoom;
     dotSize = load.dotSize;
     rotatedText = load.rotatedText;
+    shadedBackground = load.shadedBackground;
     dirty = false;
     refreshAll(load.xScroll, load.yScroll);
 }
@@ -347,6 +349,7 @@ void WindowGrid::save(std::ofstream& ofstream) {
     ofstream.write(reinterpret_cast<const char*>(toWrite), sizeof(toWrite));
     uint8_t boolOptions = 0; //doing it this way to make it easier to add more bool options in the future without breaking the file format again
     if(rotatedText) boolOptions |= 1;
+    if(shadedBackground) boolOptions |= 2;
     ofstream.write(reinterpret_cast<const char *>(&boolOptions), sizeof(uint8_t));
     size_t numElements = grid.gridMap.size();
     ofstream.write(reinterpret_cast<const char*>(&numElements), sizeof(size_t));
@@ -377,7 +380,7 @@ WindowGrid::LoadStruct WindowGrid::load(std::ifstream& ifstream) {
         gridMap.insert(pair);
     }
     Grid grid{readArr[4], readArr[5], gridMap};
-    return WindowGrid::LoadStruct{grid, static_cast<int>(readArr[0]), static_cast<int>(readArr[1]), static_cast<int>(readArr[2]), static_cast<int>(readArr[3]), (boolOptions & 1) == 1};
+    return WindowGrid::LoadStruct{grid, static_cast<int>(readArr[0]), static_cast<int>(readArr[1]), static_cast<int>(readArr[2]), static_cast<int>(readArr[3]), (boolOptions & 1) == 1, (boolOptions & 2) == 2};
 }
 
 int WindowGrid::getDotSize() const {
@@ -410,7 +413,13 @@ void WindowGrid::toggleRotatedText() {
     refreshAll();
 }
 
-WindowGrid::LoadStruct::LoadStruct(Grid grid, int zoom, int xScroll, int yScroll, int dotSize, bool rotatedText) : grid{std::move(grid)}, zoom{zoom}, xScroll{xScroll}, yScroll{yScroll}, dotSize{dotSize}, rotatedText{rotatedText} {}
+void WindowGrid::toggleShadedBackground() {
+    shadedBackground = !shadedBackground;
+    dirty = true;
+    refreshAll();
+}
+
+WindowGrid::LoadStruct::LoadStruct(Grid grid, int zoom, int xScroll, int yScroll, int dotSize, bool rotatedText, bool shadedBackground) : grid{std::move(grid)}, zoom{zoom}, xScroll{xScroll}, yScroll{yScroll}, dotSize{dotSize}, rotatedText{rotatedText}, shadedBackground{shadedBackground} {}
 
 namespace {
     Item valueDialog(const Item& currentItem) {

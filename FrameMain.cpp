@@ -24,6 +24,7 @@ FrameMain::FrameMain(const std::wstring& fileIn) : wxFrame(nullptr, wxID_ANY, "S
     Bind(wxEVT_MENU, [this](wxCommandEvent& evt) {onNew();}, id::file_new);
     Bind(wxEVT_MENU, [this](wxCommandEvent& evt) {(new DotSizeDialog{this, *windowGrid})->Show();}, id::view_dot_size);
     Bind(wxEVT_MENU, [this](wxCommandEvent& evt) {windowGrid->toggleRotatedText();}, id::view_rotated_text);
+    Bind(wxEVT_MENU, [this](wxCommandEvent& evt) {windowGrid->toggleShadedBackground();}, id::view_shaded_background);
     Bind(wxEVT_MENU, [this](wxCommandEvent& evt) {windowGrid->undo();}, wxID_UNDO);
     Bind(wxEVT_MENU, [this](wxCommandEvent& evt) {windowGrid->redo();}, wxID_REDO);
     Bind(wxEVT_CLOSE_WINDOW, &FrameMain::onClose, this);
@@ -51,6 +52,7 @@ FrameMain::FrameMain(const std::wstring& fileIn) : wxFrame(nullptr, wxID_ANY, "S
     auto* viewMenu = new wxMenu();
     viewMenu->Append(id::view_dot_size, "Set grid dot size");
     viewMenu->Append(id::view_rotated_text, "Toggle rotated text");
+    viewMenu->Append(id::view_shaded_background, "Toggle shaded background");
     auto* editMenu = new wxMenu();
     editMenu->Append(wxID_UNDO, "Undo (CTRL+Z)");
     editMenu->Append(wxID_REDO, "Redo (CTRL+Y)");
@@ -69,7 +71,7 @@ FrameMain::FrameMain(const std::wstring& fileIn) : wxFrame(nullptr, wxID_ANY, "S
         file = path;
         windowGrid = new WindowGrid(this, wxID_ANY, wxDefaultPosition, GetClientSize(), load);
     }
-    windowGrid->SetBackgroundColour(wxTheColourDatabase->Find("LIGHT GREY"));
+    //windowGrid->SetBackgroundColour(wxTheColourDatabase->Find("LIGHT GREY"));
 }
 
 void FrameMain::onSize(wxSizeEvent& evt) {

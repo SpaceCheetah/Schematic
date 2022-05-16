@@ -28,6 +28,7 @@ namespace id {
         file_load,
         view_dot_size,
         view_rotated_text,
+        view_shaded_background,
         dot_size_slider
     };
 }

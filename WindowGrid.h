@@ -8,7 +8,8 @@ public:
         Grid grid;
         int zoom, xScroll, yScroll, dotSize;
         bool rotatedText;
-        explicit LoadStruct(Grid  grid = Grid{}, int zoom = 0, int xScroll = 0, int yScroll = 0, int dotSize = 3, bool rotatedText = false);
+        bool shadedBackground;
+        explicit LoadStruct(Grid  grid = Grid{}, int zoom = 0, int xScroll = 0, int yScroll = 0, int dotSize = 3, bool rotatedText = false, bool shadedBackground = true);
     };
     explicit WindowGrid(wxWindow* parent = nullptr, wxWindowID id = wxID_ANY, const wxPoint& pos = wxDefaultPosition, const wxSize& size = wxDefaultSize, const LoadStruct& load = LoadStruct{});
     Item::ItemType selectedTool{Item::ItemType::wire};
@@ -20,6 +21,7 @@ public:
     int getDotSize() const;
     void setDotSize(int size);
     void toggleRotatedText();
+    void toggleShadedBackground();
     void undo();
     void redo();
 private:
@@ -46,4 +48,5 @@ private:
     wxBitmap switchBitmaps[4];
     int dotSize;
     bool rotatedText;
+    bool shadedBackground;
 };
