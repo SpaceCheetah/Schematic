@@ -434,15 +434,17 @@ namespace {
         }
         wxTextEntryDialog dialog{nullptr, "Value:", "Set Value", valueStr};
         if (dialog.ShowModal() == wxID_OK) {
-            if(numeric && !dialog.GetValue().IsEmpty()) {
+            wxString value = dialog.GetValue();
+            std::string utf8Value = value.utf8_string();
+            if(numeric && !value.IsEmpty() && std::all_of(utf8Value.begin(), utf8Value.end(), [](char c) {return (c >= '0' && c <= '9') || c == '.' || c == '-';})) {
                 try {
-                    double value = std::stod(dialog.GetValue().utf8_string());
-                    return Item{currentItem.type, currentItem.shape, value};
+                    double valueD = std::stod(utf8Value);
+                    return Item{currentItem.type, currentItem.shape, valueD};
                 } catch (std::exception &e) {
-                    return Item{currentItem.type, currentItem.shape, 0, dialog.GetValue().wc_str()};
+                    return Item{currentItem.type, currentItem.shape, 0, value.wc_str()};
                 }
             } else {
-                return Item{currentItem.type, currentItem.shape, 0, dialog.GetValue().wc_str()};
+                return Item{currentItem.type, currentItem.shape, 0, value.wc_str()};
             }
         }
         return Item{};
